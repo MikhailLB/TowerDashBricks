@@ -1,0 +1,3 @@
+# Prevent Git on Windows from adding BOM or altering line endings in pbxproj files.
+# Without this, pod install fails with: Invalid character "\xEF" in unquoted string
+*.pbxproj binary

@@ -24,8 +24,43 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- Gray gate: push notifications background delivery -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
+	<!-- Gray gate: Firebase swizzling for cold-start push -->
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<true/>
+	<!-- Gray gate: ATT dialog for AppsFlyer attribution -->
+	<key>NSUserTrackingUsageDescription</key>
+	<string>TowerDash Bricks uses this to personalise your building challenges and track which campaigns bring the most skilled builders to our community.</string>
+	<!-- Gray gate: WebView loads external content -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoadsInWebContent</key>
+		<true/>
+	</dict>
+	<!-- Gray gate: WebView file upload permissions -->
+	<key>NSCameraUsageDescription</key>
+	<string>TowerDash Bricks uses your camera so you can capture and share your tallest tower builds with the community.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>TowerDash Bricks saves your tower screenshots and achievement badges to your photo library so you can share them.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>TowerDash Bricks uses your microphone when recording gameplay clips to share your builds.</string>
+	<!-- Gray gate: external URL schemes -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>https</string>
+		<string>http</string>
+		<string>tel</string>
+		<string>mailto</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -69,11 +104,5 @@
 	</array>
 	<key>UIRequiresFullScreen</key>
 	<true/>
-	<key>UIStatusBarHidden</key>
-	<true/>
-	<key>UIViewControllerBasedStatusBarAppearance</key>
-	<false/>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
 </dict>
 </plist>

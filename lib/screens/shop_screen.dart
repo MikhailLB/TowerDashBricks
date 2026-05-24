@@ -544,7 +544,7 @@ class _PowerUpsTab extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       itemCount: boosts.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (ctx, idx) => const SizedBox(height: 10),
       itemBuilder: (_, i) => _BoostTile(def: boosts[i]),
     );
   }

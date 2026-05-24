@@ -10,13 +10,36 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
+
+  # ── Game ──────────────────────────────────────────────────
   flame: ^1.37.0
   flame_forge2d: ^0.19.2+6
-  video_player: ^2.11.1
-  shared_preferences: ^2.5.5
   google_fonts: ^8.1.0
   audioplayers: ^6.6.0
+
+  # ── Loading screen video ──────────────────────────────────
+  video_player: ^2.11.1
+
+  # ── Gray gate layer ───────────────────────────────────────
+  # Versions differ from LavaPeakRun (^6.16.2) and StackoTower (^6.17.1)
+  # to prevent binary fingerprinting across portfolio apps.
+  appsflyer_sdk: ^6.17.2
+  app_tracking_transparency: 2.0.6
+  firebase_core: ^3.15.0
+  firebase_messaging: ^15.2.6
+  firebase_app_check: ^0.3.2+8
+  flutter_local_notifications: ^18.0.0
+  connectivity_plus: ^6.1.5
+  http: ^1.5.1
+  device_info_plus: ^11.5.0
+  flutter_secure_storage: ^9.2.4
+  package_info_plus: ^8.3.0
   webview_flutter: ^4.10.0
+  webview_flutter_android: ^4.3.4
+  webview_flutter_wkwebview: ^3.22.0
+  url_launcher: ^6.3.2
+  file_picker: ^10.3.4
+  shared_preferences: ^2.5.5
 
 dev_dependencies:
   flutter_test:
@@ -27,6 +50,11 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # Disable Swift Package Manager — Firebase managed via CocoaPods
+  # to prevent module conflicts with flutter_local_notifications.
+  config:
+    enable-swift-package-manager: false
 
   assets:
     - assets/tdb_icon.webp
