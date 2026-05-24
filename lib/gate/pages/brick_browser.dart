@@ -44,8 +44,6 @@ class _BrickBrowserState extends State<BrickBrowser>
   late final WebViewController _webCtrl;
   StreamSubscription<List<ConnectivityResult>>? _netSub;
   bool _wentOffline = false;
-  String? _prevFrameUrl;
-  int _retryCount = 0;
   bool _initialPaintDone = false;
   bool _viewportReady = false;
   bool _refreshDone = false;
@@ -199,12 +197,8 @@ class _BrickBrowserState extends State<BrickBrowser>
 
   NavigationDelegate _buildNavDelegate() {
     return NavigationDelegate(
-      onPageStarted: (url) {
-        // Record the URL being loaded so 800ms reload can verify page hasn't changed.
-        if (url.isNotEmpty) _prevFrameUrl = url;
-      },
+      onPageStarted: (_) {},
       onPageFinished: (url) {
-        _retryCount = 0;
         _applyViewportFix();
         _applyKeyboardFix();
         _preventAutoZoom();
@@ -249,7 +243,6 @@ class _BrickBrowserState extends State<BrickBrowser>
         final s = uri.scheme;
         if (s == 'http' || s == 'https' || s == 'about' ||
             s == 'data' || s == 'blob') {
-          if (req.isMainFrame) _prevFrameUrl = req.url;
           return NavigationDecision.navigate;
         }
         _openExternalUrl(uri);
