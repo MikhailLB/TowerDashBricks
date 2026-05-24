@@ -150,130 +150,135 @@ class _MainMenuScreenState extends State<MainMenuScreen>
           FadeTransition(
             opacity: _fadeAnim,
             child: SafeArea(
-              child: Column(
-                children: [
-                  // ─ Top bar ─
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                    child: Row(
-                      children: [
-                        _StatChip(
-                          icon: Icons.emoji_events_rounded,
-                          label: 'Best',
-                          value: '${progress.highScore}',
-                          color: AppColors.craneYellow,
-                        ),
-                        const Spacer(),
-                        _StatChip(
-                          icon: Icons.toll_rounded,
-                          label: 'Coins',
-                          value: '${progress.coins}',
-                          color: AppColors.craneYellow,
-                        ),
-                        const SizedBox(width: 10),
-                        _CircleAction(
-                          icon: Icons.settings_rounded,
-                          onTap: _openSettings,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // ─ Logo ─
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.accent.withValues(alpha: 0.4),
-                            blurRadius: 60,
-                            spreadRadius: 10,
-                          ),
-                        ],
-                      ),
-                      child: Image.asset(
-                        TdbAssets.gameName,
-                        width: size.width * 0.80,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-
-                  const Spacer(),
-
-                  // ─ Floating building ─
-                  AnimatedBuilder(
-                    animation: _floatCtrl,
-                    builder: (_, child) => Transform.translate(
-                      offset: Offset(0, -8 + 16 * _floatCtrl.value),
-                      child: child,
-                    ),
-                    child: Image.asset(
-                      TdbAssets.base,
-                      width: size.width * 0.58,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-
-                  // ─ Bottom action panel ─
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          AppColors.concrete.withValues(alpha: 0.95),
-                          AppColors.background,
-                        ],
-                        stops: const [0.0, 0.25, 1.0],
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Primary CTA
-                        PixelButton(
-                          label: 'Rush!',
-                          onPressed: _openLevelSelect,
-                          width: double.infinity,
-                          height: 66,
-                          fontSize: 28,
-                          icon: Icons.construction_rounded,
-                        ),
-                        const SizedBox(height: 10),
-
-                        // Shop button
-                        PixelButton(
-                          label: 'Shop',
-                          onPressed: _openShop,
-                          width: double.infinity,
-                          height: 52,
-                          fontSize: 20,
-                          color: PixelButtonColor.secondary,
-                          icon: Icons.storefront_rounded,
-                        ),
-                        const SizedBox(height: 8),
-
-                        // Links — padding inside _LinkBtn keeps tap zone large
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    physics: const ClampingScrollPhysics(),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                      child: IntrinsicHeight(
+                        child: Column(
                           children: [
-                            _LinkBtn(label: 'Privacy Policy', onTap: _openPrivacy),
-                            const Text('·',
-                                style: TextStyle(color: Colors.white38)),
-                            _LinkBtn(label: 'Support', onTap: _openSupport),
+                            // ─ Top bar ─
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                              child: Row(
+                                children: [
+                                  _StatChip(
+                                    icon: Icons.emoji_events_rounded,
+                                    label: 'Best',
+                                    value: '${progress.highScore}',
+                                    color: AppColors.craneYellow,
+                                  ),
+                                  const Spacer(),
+                                  _StatChip(
+                                    icon: Icons.toll_rounded,
+                                    label: 'Coins',
+                                    value: '${progress.coins}',
+                                    color: AppColors.craneYellow,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  _CircleAction(
+                                    icon: Icons.settings_rounded,
+                                    onTap: _openSettings,
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // ─ Logo ─
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppColors.accent.withValues(alpha: 0.4),
+                                      blurRadius: 60,
+                                      spreadRadius: 10,
+                                    ),
+                                  ],
+                                ),
+                                child: Image.asset(
+                                  TdbAssets.gameName,
+                                  width: size.width * 0.80,
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            ),
+
+                            const Spacer(),
+
+                            // ─ Floating building ─
+                            AnimatedBuilder(
+                              animation: _floatCtrl,
+                              builder: (_, child) => Transform.translate(
+                                offset: Offset(0, -8 + 16 * _floatCtrl.value),
+                                child: child,
+                              ),
+                              child: Image.asset(
+                                TdbAssets.base,
+                                width: size.width * 0.58,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+
+                            // ─ Bottom action panel ─
+                            Container(
+                              padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.transparent,
+                                    AppColors.concrete.withValues(alpha: 0.95),
+                                    AppColors.background,
+                                  ],
+                                  stops: const [0.0, 0.25, 1.0],
+                                ),
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  PixelButton(
+                                    label: 'Rush!',
+                                    onPressed: _openLevelSelect,
+                                    width: double.infinity,
+                                    height: 66,
+                                    fontSize: 28,
+                                    icon: Icons.construction_rounded,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  PixelButton(
+                                    label: 'Shop',
+                                    onPressed: _openShop,
+                                    width: double.infinity,
+                                    height: 52,
+                                    fontSize: 20,
+                                    color: PixelButtonColor.secondary,
+                                    icon: Icons.storefront_rounded,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      _LinkBtn(label: 'Privacy Policy', onTap: _openPrivacy),
+                                      const Text('·',
+                                          style: TextStyle(color: Colors.white38)),
+                                      _LinkBtn(label: 'Support', onTap: _openSupport),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
-                        // Safe area bottom padding so links sit above home indicator
-                        SizedBox(height: MediaQuery.of(context).padding.bottom),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
+                  );
+                },
               ),
             ),
           ),
