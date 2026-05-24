@@ -54,7 +54,7 @@ class AudioService with WidgetsBindingObserver {
           ),
           iOS: AudioContextIOS(
             category: AVAudioSessionCategory.ambient,
-            options: const {AVAudioSessionOptions.mixWithOthers},
+            options: const {},
           ),
         ),
       );
