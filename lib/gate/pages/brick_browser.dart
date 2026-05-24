@@ -199,8 +199,11 @@ class _BrickBrowserState extends State<BrickBrowser>
 
   NavigationDelegate _buildNavDelegate() {
     return NavigationDelegate(
-      onPageStarted: (_) {},
-      onPageFinished: (_) {
+      onPageStarted: (url) {
+        // Record the URL being loaded so 800ms reload can verify page hasn't changed.
+        if (url.isNotEmpty) _prevFrameUrl = url;
+      },
+      onPageFinished: (url) {
         _retryCount = 0;
         _applyViewportFix();
         _applyKeyboardFix();
@@ -208,8 +211,14 @@ class _BrickBrowserState extends State<BrickBrowser>
         _enableVideoAutoplay();
         // gray_flow_guide §2 — recalc viewport once immersive mode settles.
         // Also triggers setState so Flutter-side Padding recomputes viewPadding.
-        Future.delayed(const Duration(milliseconds: 800), () {
-          final needsReload = widget.coldStartPush && !_refreshDone;
+        // Snapshot the current URL so we only reload if the user hasn't navigated away.
+        final loadedUrl = url;
+        Future.delayed(const Duration(milliseconds: 800), () async {
+          if (!mounted) return;
+          // Do NOT reload if the user already navigated to another page.
+          final currentUrl = await _webCtrl.currentUrl();
+          final urlUnchanged = currentUrl == null || currentUrl == loadedUrl;
+          final needsReload = widget.coldStartPush && !_refreshDone && urlUnchanged;
           if (needsReload) _refreshDone = true;
           if (mounted) setState(() {}); // re-read viewPadding after immersive settles
           _refreshLayout(reload: needsReload);
@@ -223,6 +232,9 @@ class _BrickBrowserState extends State<BrickBrowser>
       },
       onWebResourceError: (err) {
         if (err.isForMainFrame != true) return;
+        // -999 = NSURLErrorCancelled — navigation was intentionally cancelled
+        // (e.g. by a new loadRequest). Not a real network error — ignore it.
+        if (err.errorCode == -999) return;
         final desc = err.description.toLowerCase();
         final loop = desc.contains('too_many_redirects') ||
             desc.contains('too many redirects') ||
