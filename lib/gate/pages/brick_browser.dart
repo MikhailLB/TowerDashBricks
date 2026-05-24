@@ -232,18 +232,14 @@ class _BrickBrowserState extends State<BrickBrowser>
       },
       onWebResourceError: (err) {
         if (err.isForMainFrame != true) return;
-        // -999 = NSURLErrorCancelled — navigation was intentionally cancelled
-        // (e.g. by a new loadRequest). Not a real network error — ignore it.
+        // -999 = NSURLErrorCancelled — navigation intentionally cancelled
+        // (e.g. by a new loadRequest or our 800ms reload). Not a real error.
         if (err.errorCode == -999) return;
-        final desc = err.description.toLowerCase();
-        final loop = desc.contains('too_many_redirects') ||
-            desc.contains('too many redirects') ||
-            err.errorCode == -1007 || err.errorCode == -9;
-        if (loop && _prevFrameUrl != null && _retryCount < 3) {
-          _retryCount++;
-          _webCtrl.loadRequest(Uri.parse(_prevFrameUrl!));
-          return;
-        }
+        // -1007 = NSURLErrorHTTPTooManyRedirects — the site's redirect chain
+        // exceeded WKWebView's limit (~20). Retrying the same URL would just
+        // create another loop and generate -999 cancels. Ignore and let the
+        // site handle its own redirects; do NOT route to OfflineScreen.
+        if (err.errorCode == -1007) return;
         _checkOfflineState();
       },
       onHttpError: (_) {},
