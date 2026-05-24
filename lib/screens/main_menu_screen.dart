@@ -260,20 +260,18 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                           ),
                           const SizedBox(height: 12),
 
-                          // Links
+                          // Links — padding inside _LinkBtn keeps tap zone large
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               _LinkBtn(label: 'Privacy Policy', onTap: _openPrivacy),
-                              const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 10),
-                                child: Text('·',
-                                    style: TextStyle(color: Colors.white38)),
-                              ),
+                              const Text('·',
+                                  style: TextStyle(color: Colors.white38)),
                               _LinkBtn(label: 'Support', onTap: _openSupport),
                             ],
                           ),
-                          const SizedBox(height: 8),
+                          // Extra bottom space so links sit above home indicator
+                          SizedBox(height: MediaQuery.of(context).padding.bottom + 4),
                         ],
                       ),
                     ),
@@ -365,11 +363,16 @@ class _LinkBtn extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Text(
-        label,
-        style: AppTextStyles.body(size: 12, color: AppColors.textMuted)
-            .copyWith(decoration: TextDecoration.underline,
-                decorationColor: AppColors.textMuted.withValues(alpha: 0.4)),
+      child: Padding(
+        // Extra padding makes the tap area bigger — buttons sit near the
+        // bottom home indicator and are hard to hit without it.
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+        child: Text(
+          label,
+          style: AppTextStyles.body(size: 12, color: AppColors.textMuted)
+              .copyWith(decoration: TextDecoration.underline,
+                  decorationColor: AppColors.textMuted.withValues(alpha: 0.4)),
+        ),
       ),
     );
   }
