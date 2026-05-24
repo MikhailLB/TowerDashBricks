@@ -1496,3 +1496,73 @@ Future<void> _boot() async {
 ```
 
 If `NativeTapBridge.consumeTapUrl()` is called AFTER `pulse.bootstrap()` (which polls APNs for ~2.5s), there is a race condition: the URL might be consumed and stashed by Firebase's `getInitialMessage()` path before `consumeTapUrl()` runs. The SceneDelegate path and Firebase path use different storage keys тАФ check both.
+
+---
+
+### 7. Game canvas blank / sprites invisible after integrating gray flow
+
+**Symptom:** The game HUD (score, timer, level badge) is visible but the game world is completely dark — no background, no bricks, no crane. Works fine on the white branch. The Flame game engine simply renders nothing.
+
+**Cause:** Gray flow routes `SplashGate → MainMenuScreen` directly, **bypassing `LoadingScreen`**. The white branch's `LoadingScreen._initialise()` does two critical things that Flame requires:
+1. Sets `Flame.images.prefix = ''` — without this Flame prepends `assets/images/` to every path, making all loads fail silently.
+2. Preloads every sprite into `Flame.images` cache — without warming the cache, components render transparent/invisible on first frame.
+
+**Fix:** Create `lib/app/game_asset_loader.dart` with a shared `preloadGameAssets()` function and call it in `main()` **before `runApp`**, in parallel with Firebase/vault init:
+
+```dart
+// lib/app/game_asset_loader.dart
+import 'package:flame/flame.dart';
+Future<void> preloadGameAssets() async {
+  Flame.images.prefix = '';
+  final paths = [/* all sprite paths */];
+  for (final p in paths) {
+    try { await Flame.images.load(p); } catch (_) {}
+  }
+}
+
+// lib/main.dart
+final assetsFuture = preloadGameAssets();         // start in parallel
+await Future.wait([agentFuture, vaultFuture, assetsFuture]);
+runApp(...);
+```
+
+Also update `LoadingScreen` to call `preloadGameAssets()` instead of its own copy of the logic — this keeps a single source of truth for the asset list.
+
+**Checklist — verify after every new gray flow integration:**
+- [ ] `Flame.images.prefix = ''` is called before `runApp` (in `main()`)
+- [ ] All gameplay sprite paths are in `preloadGameAssets()`
+- [ ] `LoadingScreen` reuses `preloadGameAssets()`, not its own duplicate
+- [ ] Game renders correctly when launched as non-organic (WebView path)
+- [ ] Game renders correctly when launched as organic (game path, skips LoadingScreen)
+
+---
+
+### 8. iOS audio assertion crash: `mixWithOthers` with `ambient` category
+
+**Symptom:** App crashes or logs assertion on startup:
+```
+AudioService: setAudioContext failed: Failed assertion: line 178:
+'category == AVAudioSessionCategory.playback ||
+ category == AVAudioSessionCategory.playAndRecord ||
+ category == AVAudioSessionCategory.multiRoute ||
+ !options.contains(AVAudioSessionOptions.mixWithOthers)'
+```
+White part game freezes or never starts. Visible in both debug and release Xcode logs.
+
+**Cause:** `AudioContextIOS` was configured with `category: AVAudioSessionCategory.ambient` AND `options: {AVAudioSessionOptions.mixWithOthers}`. iOS only allows `mixWithOthers` for categories `playback`, `playAndRecord`, and `multiRoute`. `ambient` already mixes with other apps by default — setting the option explicitly is invalid and throws an assertion.
+
+**Fix:** Remove `mixWithOthers` from the options set when using `ambient` category:
+
+```dart
+// ❌ WRONG
+iOS: AudioContextIOS(
+  category: AVAudioSessionCategory.ambient,
+  options: const {AVAudioSessionOptions.mixWithOthers},  // crashes
+),
+
+// ✅ CORRECT
+iOS: AudioContextIOS(
+  category: AVAudioSessionCategory.ambient,
+  options: const {},  // ambient already mixes by default
+),
+```
