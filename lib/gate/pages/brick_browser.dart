@@ -44,20 +44,18 @@ class _BrickBrowserState extends State<BrickBrowser>
   late final WebViewController _webCtrl;
   StreamSubscription<List<ConnectivityResult>>? _netSub;
   bool _wentOffline = false;
-  bool _initialPaintDone = false;
-  String? _lastLoadedUrl;
+  String? _lastMainFrameUrl;
   int _redirectRetries = 0;
-  bool _viewportReady = false;
-  bool _refreshDone = false;
+  bool _initialPaintDone = false;
+  bool _surfaceReady = false;
+  bool _coldReloadDone = false;
   Widget? _videoOverlay;
   void Function()? _dismissOverlay;
 
   void _enableImmersive() =>
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-  /// Micro-rotation — forces the WKWebView native frame to recalculate.
-  /// Equivalent to the user manually rotating the device (gray_flow_guide §2).
-  Future<void> _forceLayoutRecalc() async {
+  Future<void> _nudgeOrientationLayout() async {
     if (!Platform.isIOS) return;
     await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft]);
     await Future.delayed(const Duration(milliseconds: 50));
@@ -70,15 +68,15 @@ class _BrickBrowserState extends State<BrickBrowser>
     ]);
   }
 
-  Future<void> _initColdStartView() async {
+  Future<void> _prepareColdStartSurface() async {
     _enableImmersive();
     await Future.delayed(const Duration(milliseconds: 150));
     if (!mounted) return;
-    await _forceLayoutRecalc();
+    await _nudgeOrientationLayout();
     await Future.delayed(const Duration(milliseconds: 250));
   }
 
-  Future<void> _refreshLayout({bool reload = false}) async {
+  Future<void> _recalcViewport({bool reload = false}) async {
     if (!mounted) return;
     setState(() {});
     _webCtrl.runJavaScript(
@@ -92,7 +90,7 @@ class _BrickBrowserState extends State<BrickBrowser>
     }
   }
 
-  void _deferImmersive() {
+  void _scheduleImmersiveSettle() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _enableImmersive();
       Future.delayed(const Duration(milliseconds: 100), () {
@@ -159,14 +157,14 @@ class _BrickBrowserState extends State<BrickBrowser>
     _setupPlatform();
 
     if (widget.coldStartPush) {
-      _initColdStartView().then((_) {
+      _prepareColdStartSurface().then((_) {
         if (!mounted) return;
-        setState(() => _viewportReady = true);
+        setState(() => _surfaceReady = true);
         _webCtrl.loadRequest(Uri.parse(widget.destination));
       });
     } else {
-      _viewportReady = true;
-      _deferImmersive();
+      _surfaceReady = true;
+      _scheduleImmersiveSettle();
       _beginLoad();
     }
 
@@ -199,28 +197,17 @@ class _BrickBrowserState extends State<BrickBrowser>
 
   NavigationDelegate _buildNavDelegate() {
     return NavigationDelegate(
-      onPageStarted: (url) {
-        if (url.isNotEmpty) _lastLoadedUrl = url;
-      },
-      onPageFinished: (url) {
+      onPageStarted: (_) {},
+      onPageFinished: (_) {
         _redirectRetries = 0;
         _applyViewportFix();
         _applyKeyboardFix();
         _preventAutoZoom();
         _enableVideoAutoplay();
-        // gray_flow_guide §2 — recalc viewport once immersive mode settles.
-        // Also triggers setState so Flutter-side Padding recomputes viewPadding.
-        // Snapshot the current URL so we only reload if the user hasn't navigated away.
-        final loadedUrl = url;
-        Future.delayed(const Duration(milliseconds: 800), () async {
-          if (!mounted) return;
-          // Do NOT reload if the user already navigated to another page.
-          final currentUrl = await _webCtrl.currentUrl();
-          final urlUnchanged = currentUrl == null || currentUrl == loadedUrl;
-          final needsReload = widget.coldStartPush && !_refreshDone && urlUnchanged;
-          if (needsReload) _refreshDone = true;
-          if (mounted) setState(() {}); // re-read viewPadding after immersive settles
-          _refreshLayout(reload: needsReload);
+        Future.delayed(const Duration(milliseconds: 800), () {
+          final needsReload = widget.coldStartPush && !_coldReloadDone;
+          if (needsReload) _coldReloadDone = true;
+          _recalcViewport(reload: needsReload);
         });
         if (!_initialPaintDone) {
           _initialPaintDone = true;
@@ -231,22 +218,13 @@ class _BrickBrowserState extends State<BrickBrowser>
       },
       onWebResourceError: (err) {
         if (err.isForMainFrame != true) return;
-        // -999 = NSURLErrorCancelled — navigation intentionally cancelled
-        // (e.g. by a new loadRequest or our 800ms reload). Not a real error.
-        if (err.errorCode == -999) return;
-        // -1007 = NSURLErrorHTTPTooManyRedirects — site's affiliate/tracking
-        // redirect chain hit WKWebView's limit. Retry the same URL after a
-        // short delay (resets WKWebView redirect counter); up to 3 attempts.
-        // The retry fires a new loadRequest → WKWebView may cancel the current
-        // request with -999, which is now harmlessly ignored above.
-        if (err.errorCode == -1007) {
-          if (_lastLoadedUrl != null && _redirectRetries < 3) {
-            _redirectRetries++;
-            final url = _lastLoadedUrl!;
-            Future.delayed(const Duration(milliseconds: 500), () {
-              if (mounted) _webCtrl.loadRequest(Uri.parse(url));
-            });
-          }
+        final desc = err.description.toLowerCase();
+        final loop = desc.contains('too_many_redirects') ||
+            desc.contains('too many redirects') ||
+            err.errorCode == -1007 || err.errorCode == -9;
+        if (loop && _lastMainFrameUrl != null && _redirectRetries < 3) {
+          _redirectRetries++;
+          _webCtrl.loadRequest(Uri.parse(_lastMainFrameUrl!));
           return;
         }
         _checkOfflineState();
@@ -258,6 +236,7 @@ class _BrickBrowserState extends State<BrickBrowser>
         final s = uri.scheme;
         if (s == 'http' || s == 'https' || s == 'about' ||
             s == 'data' || s == 'blob') {
+          if (req.isMainFrame) _lastMainFrameUrl = req.url;
           return NavigationDecision.navigate;
         }
         _openExternalUrl(uri);
@@ -454,16 +433,7 @@ class _BrickBrowserState extends State<BrickBrowser>
 
   @override
   Widget build(BuildContext context) {
-    // On cold-start push tap: don't apply viewPadding — immersiveSticky is still
-    // settling (viewPadding is stale from before system UI was hidden).
-    // Safe-area insets are zeroed by _applyViewportFix() JS injection instead.
-    final safe = widget.coldStartPush ? EdgeInsets.zero
-        : EdgeInsets.only(
-            top: MediaQuery.of(context).viewPadding.top,
-            bottom: MediaQuery.of(context).viewPadding.bottom,
-            left: MediaQuery.of(context).viewPadding.left,
-            right: MediaQuery.of(context).viewPadding.right,
-          );
+    final safe = MediaQuery.of(context).viewPadding;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
@@ -475,9 +445,12 @@ class _BrickBrowserState extends State<BrickBrowser>
         body: Stack(
           fit: StackFit.expand,
           children: [
-            if (_viewportReady)
+            if (_surfaceReady)
               Padding(
-                padding: safe,
+                padding: EdgeInsets.only(
+                  top: safe.top, bottom: safe.bottom,
+                  left: safe.left, right: safe.right,
+                ),
                 child: WebViewWidget(controller: _webCtrl),
               )
             else
