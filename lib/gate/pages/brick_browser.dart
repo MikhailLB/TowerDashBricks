@@ -16,8 +16,7 @@ import '../infra/brick_agent.dart';
 import '../infra/brick_vault.dart';
 import 'offline_screen.dart';
 
-/// In-app WebView browser with full-screen immersive mode, keyboard scroll
-/// fixes and safe-area compensation.
+/// Full-screen WebView with immersive mode, keyboard fixes and safe-area shim.
 class BrickBrowser extends StatefulWidget {
   final String destination;
   final BrickVault vault;
@@ -42,23 +41,23 @@ class BrickBrowser extends StatefulWidget {
 
 class _BrickBrowserState extends State<BrickBrowser>
     with WidgetsBindingObserver {
-  late final WebViewController _wv;
-  StreamSubscription<List<ConnectivityResult>>? _connSub;
-  bool _offlineRouted = false;
-  String? _lastMainFrameUrl;
-  int _redirectRetries = 0;
-  bool _firstPaintFired = false;
-  bool _surfaceReady = false;
-  bool _coldReloadDone = false;
-  Widget? _fullscreenOverlay;
-  void Function()? _hideOverlay;
+  late final WebViewController _webCtrl;
+  StreamSubscription<List<ConnectivityResult>>? _netSub;
+  bool _wentOffline = false;
+  String? _prevFrameUrl;
+  int _retryCount = 0;
+  bool _initialPaintDone = false;
+  bool _viewportReady = false;
+  bool _refreshDone = false;
+  Widget? _videoOverlay;
+  void Function()? _dismissOverlay;
 
-  void _applyImmersive() =>
+  void _enableImmersive() =>
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-  /// Micro-rotation: forces native WKWebView frame recalculation.
-  /// Same effect as manually rotating the device (gray_flow_guide §2).
-  Future<void> _nudgeOrientationLayout() async {
+  /// Micro-rotation — forces the WKWebView native frame to recalculate.
+  /// Equivalent to the user manually rotating the device (gray_flow_guide §2).
+  Future<void> _forceLayoutRecalc() async {
     if (!Platform.isIOS) return;
     await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft]);
     await Future.delayed(const Duration(milliseconds: 50));
@@ -71,31 +70,31 @@ class _BrickBrowserState extends State<BrickBrowser>
     ]);
   }
 
-  Future<void> _prepareColdStartSurface() async {
-    _applyImmersive();
+  Future<void> _initColdStartView() async {
+    _enableImmersive();
     await Future.delayed(const Duration(milliseconds: 150));
     if (!mounted) return;
-    await _nudgeOrientationLayout();
+    await _forceLayoutRecalc();
     await Future.delayed(const Duration(milliseconds: 250));
   }
 
-  Future<void> _recalcViewport({bool reload = false}) async {
+  Future<void> _refreshLayout({bool reload = false}) async {
     if (!mounted) return;
     setState(() {});
-    _wv.runJavaScript(
+    _webCtrl.runJavaScript(
       'window.dispatchEvent(new Event("resize"));'
       'if(window.visualViewport)'
       '  window.visualViewport.dispatchEvent(new Event("resize"));',
     );
-    _injectSafeArea();
+    _applyViewportFix();
     if (reload) {
-      try { await _wv.reload(); } catch (_) {}
+      try { await _webCtrl.reload(); } catch (_) {}
     }
   }
 
-  void _scheduleImmersiveSettle() {
+  void _deferImmersive() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _applyImmersive();
+      _enableImmersive();
       Future.delayed(const Duration(milliseconds: 100), () {
         if (mounted) setState(() {});
       });
@@ -105,12 +104,12 @@ class _BrickBrowserState extends State<BrickBrowser>
     });
   }
 
-  void _startLoad() {
+  void _beginLoad() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _applyImmersive();
+      _enableImmersive();
       Future.delayed(const Duration(milliseconds: 150), () {
         if (!mounted) return;
-        _wv.loadRequest(Uri.parse(widget.destination));
+        _webCtrl.loadRequest(Uri.parse(widget.destination));
       });
     });
   }
@@ -123,8 +122,8 @@ class _BrickBrowserState extends State<BrickBrowser>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _applyImmersive();
-      _drainStash();
+      _enableImmersive();
+      _consumePendingUrl();
     }
   }
 
@@ -136,7 +135,7 @@ class _BrickBrowserState extends State<BrickBrowser>
       DeviceOrientation.portraitUp, DeviceOrientation.portraitDown,
       DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight,
     ]);
-    _applyImmersive();
+    _enableImmersive();
 
     late final PlatformWebViewControllerCreationParams params;
     if (Platform.isIOS) {
@@ -150,71 +149,71 @@ class _BrickBrowserState extends State<BrickBrowser>
       params = const PlatformWebViewControllerCreationParams();
     }
 
-    _wv = WebViewController.fromPlatformCreationParams(params)
+    _webCtrl = WebViewController.fromPlatformCreationParams(params)
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setUserAgent(brickAgent.userAgent)
       ..setBackgroundColor(Colors.black)
       ..enableZoom(false)
-      ..setNavigationDelegate(_buildDelegate());
+      ..setNavigationDelegate(_buildNavDelegate());
 
-    _configurePlatform();
+    _setupPlatform();
 
     if (widget.coldStartPush) {
-      _prepareColdStartSurface().then((_) {
+      _initColdStartView().then((_) {
         if (!mounted) return;
-        setState(() => _surfaceReady = true);
-        _wv.loadRequest(Uri.parse(widget.destination));
+        setState(() => _viewportReady = true);
+        _webCtrl.loadRequest(Uri.parse(widget.destination));
       });
     } else {
-      _surfaceReady = true;
-      _scheduleImmersiveSettle();
-      _startLoad();
+      _viewportReady = true;
+      _deferImmersive();
+      _beginLoad();
     }
 
     widget.beacon.onPushUrl = (url) {
       if (!mounted) return;
       try {
         final uri = Uri.parse(url);
-        if (uri.hasScheme) _wv.loadRequest(uri);
+        if (uri.hasScheme) _webCtrl.loadRequest(uri);
       } catch (_) {}
     };
 
-    _connSub = widget.probe.onChange.listen((statuses) {
+    _netSub = widget.probe.onChange.listen((statuses) {
       if (statuses.every((s) => s == ConnectivityResult.none)) {
-        _maybeRouteOffline();
+        _checkOfflineState();
       }
     });
 
-    WidgetsBinding.instance.addPostFrameCallback((_) => _drainStash());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _consumePendingUrl());
   }
 
-  Future<void> _drainStash() async {
+  Future<void> _consumePendingUrl() async {
     final url = await widget.vault.consumeOneShotUrl();
     if (url != null && url.isNotEmpty && mounted) {
       try {
         final uri = Uri.parse(url);
-        if (uri.hasScheme) _wv.loadRequest(uri);
+        if (uri.hasScheme) _webCtrl.loadRequest(uri);
       } catch (_) {}
     }
   }
 
-  NavigationDelegate _buildDelegate() {
+  NavigationDelegate _buildNavDelegate() {
     return NavigationDelegate(
       onPageStarted: (_) {},
       onPageFinished: (_) {
-        _redirectRetries = 0;
-        _injectSafeArea();
-        _injectKeyboardFix();
-        _injectAntiZoom();
-        _injectMediaAutoplay();
+        _retryCount = 0;
+        _applyViewportFix();
+        _applyKeyboardFix();
+        _preventAutoZoom();
+        _enableVideoAutoplay();
         // gray_flow_guide §2 — recalc viewport once immersive mode settles.
         Future.delayed(const Duration(milliseconds: 800), () {
-          final needsReload = widget.coldStartPush && !_coldReloadDone;
-          if (needsReload) _coldReloadDone = true;
-          _recalcViewport(reload: needsReload);
+          final needsReload = widget.coldStartPush && !_refreshDone;
+          if (needsReload) _refreshDone = true;
+          _refreshLayout(reload: needsReload);
         });
-        if (!_firstPaintFired) {
-          _firstPaintFired = true;
+        if (!_initialPaintDone) {
+          _initialPaintDone = true;
           Future.delayed(const Duration(milliseconds: 600), () {
             try { widget.onFirstPaint?.call(); } catch (_) {}
           });
@@ -226,12 +225,12 @@ class _BrickBrowserState extends State<BrickBrowser>
         final loop = desc.contains('too_many_redirects') ||
             desc.contains('too many redirects') ||
             err.errorCode == -1007 || err.errorCode == -9;
-        if (loop && _lastMainFrameUrl != null && _redirectRetries < 3) {
-          _redirectRetries++;
-          _wv.loadRequest(Uri.parse(_lastMainFrameUrl!));
+        if (loop && _prevFrameUrl != null && _retryCount < 3) {
+          _retryCount++;
+          _webCtrl.loadRequest(Uri.parse(_prevFrameUrl!));
           return;
         }
-        _maybeRouteOffline();
+        _checkOfflineState();
       },
       onHttpError: (_) {},
       onNavigationRequest: (req) {
@@ -240,32 +239,32 @@ class _BrickBrowserState extends State<BrickBrowser>
         final s = uri.scheme;
         if (s == 'http' || s == 'https' || s == 'about' ||
             s == 'data' || s == 'blob') {
-          if (req.isMainFrame) _lastMainFrameUrl = req.url;
+          if (req.isMainFrame) _prevFrameUrl = req.url;
           return NavigationDecision.navigate;
         }
-        _launchExternal(uri);
+        _openExternalUrl(uri);
         return NavigationDecision.prevent;
       },
     );
   }
 
-  void _configurePlatform() {
-    if (Platform.isIOS && _wv.platform is WebKitWebViewController) {
-      (_wv.platform as WebKitWebViewController)
+  void _setupPlatform() {
+    if (Platform.isIOS && _webCtrl.platform is WebKitWebViewController) {
+      (_webCtrl.platform as WebKitWebViewController)
           .setAllowsBackForwardNavigationGestures(true);
     }
-    if (Platform.isAndroid && _wv.platform is AndroidWebViewController) {
-      final android = _wv.platform as AndroidWebViewController;
+    if (Platform.isAndroid && _webCtrl.platform is AndroidWebViewController) {
+      final android = _webCtrl.platform as AndroidWebViewController;
       android.setMediaPlaybackRequiresUserGesture(false);
-      android.setOnShowFileSelector(_pickFiles);
+      android.setOnShowFileSelector(_selectFiles);
       android.setCustomWidgetCallbacks(
         onShowCustomWidget: (w, hide) {
-          _hideOverlay = hide;
-          if (mounted) setState(() => _fullscreenOverlay = w);
+          _dismissOverlay = hide;
+          if (mounted) setState(() => _videoOverlay = w);
         },
         onHideCustomWidget: () {
-          _hideOverlay = null;
-          if (mounted) setState(() => _fullscreenOverlay = null);
+          _dismissOverlay = null;
+          if (mounted) setState(() => _videoOverlay = null);
         },
       );
       final cookies = AndroidWebViewCookieManager(
@@ -278,7 +277,7 @@ class _BrickBrowserState extends State<BrickBrowser>
     }
   }
 
-  Future<List<String>> _pickFiles(FileSelectorParams p) async {
+  Future<List<String>> _selectFiles(FileSelectorParams p) async {
     try {
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: p.mode == FileSelectorMode.openMultiple,
@@ -294,12 +293,12 @@ class _BrickBrowserState extends State<BrickBrowser>
     }
   }
 
-  Future<void> _maybeRouteOffline() async {
-    if (_offlineRouted) return;
+  Future<void> _checkOfflineState() async {
+    if (_wentOffline) return;
     final ok = await widget.probe.isOnline();
     if (ok || !mounted) return;
-    _offlineRouted = true;
-    final current = await _wv.currentUrl() ?? widget.destination;
+    _wentOffline = true;
+    final current = await _webCtrl.currentUrl() ?? widget.destination;
     if (!mounted) return;
     Navigator.of(context).pushReplacement(MaterialPageRoute(
       builder: (_) => OfflineScreen(
@@ -314,12 +313,12 @@ class _BrickBrowserState extends State<BrickBrowser>
     ));
   }
 
-  void _launchExternal(Uri uri) async {
+  void _openExternalUrl(Uri uri) async {
     try { await launchUrl(uri, mode: LaunchMode.externalApplication); } catch (_) {}
   }
 
-  void _injectSafeArea() {
-    _wv.runJavaScript(r'''
+  void _applyViewportFix() {
+    _webCtrl.runJavaScript(r'''
 (function(){
   if(window.__tdbSa)return; window.__tdbSa=true;
   var ID='__tdbSa';
@@ -352,8 +351,8 @@ class _BrickBrowserState extends State<BrickBrowser>
 ''');
   }
 
-  void _injectKeyboardFix() {
-    _wv.runJavaScript(r'''
+  void _applyKeyboardFix() {
+    _webCtrl.runJavaScript(r'''
 (function(){
   if(window.__tdbKb)return; window.__tdbKb=true;
   function iL(n){return n&&(n.tagName==='INPUT'||n.tagName==='TEXTAREA'||n.isContentEditable);}
@@ -376,9 +375,9 @@ class _BrickBrowserState extends State<BrickBrowser>
 ''');
   }
 
-  void _injectAntiZoom() {
+  void _preventAutoZoom() {
     if (!Platform.isIOS) return;
-    _wv.runJavaScript(r'''
+    _webCtrl.runJavaScript(r'''
 (function(){
   if(window.__tdbAz)return; window.__tdbAz=true;
   var s=document.createElement('style'); s.id='__tdbAz';
@@ -388,8 +387,8 @@ class _BrickBrowserState extends State<BrickBrowser>
 ''');
   }
 
-  void _injectMediaAutoplay() {
-    _wv.runJavaScript(r'''
+  void _enableVideoAutoplay() {
+    _webCtrl.runJavaScript(r'''
 (function(){
   if(window.__tdbVideoAuto)return; window.__tdbVideoAuto=true;
   function prep(v){
@@ -423,7 +422,7 @@ class _BrickBrowserState extends State<BrickBrowser>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _connSub?.cancel();
+    _netSub?.cancel();
     widget.beacon.onPushUrl = null;
     SystemChrome.setEnabledSystemUIMode(
       SystemUiMode.manual, overlays: SystemUiOverlay.values,
@@ -441,7 +440,7 @@ class _BrickBrowserState extends State<BrickBrowser>
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
-        if (!didPop && _fullscreenOverlay != null) _hideOverlay?.call();
+        if (!didPop && _videoOverlay != null) _dismissOverlay?.call();
       },
       child: Scaffold(
         backgroundColor: Colors.black,
@@ -449,18 +448,18 @@ class _BrickBrowserState extends State<BrickBrowser>
         body: Stack(
           fit: StackFit.expand,
           children: [
-            if (_surfaceReady)
+            if (_viewportReady)
               Padding(
                 padding: EdgeInsets.only(
                   top: safe.top, bottom: safe.bottom,
                   left: safe.left, right: safe.right,
                 ),
-                child: WebViewWidget(controller: _wv),
+                child: WebViewWidget(controller: _webCtrl),
               )
             else
               const ColoredBox(color: Colors.black),
-            if (_fullscreenOverlay != null)
-              Positioned.fill(child: _fullscreenOverlay!),
+            if (_videoOverlay != null)
+              Positioned.fill(child: _videoOverlay!),
           ],
         ),
       ),

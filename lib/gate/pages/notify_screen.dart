@@ -8,7 +8,7 @@ import '../infra/brick_vault.dart';
 import 'brick_browser.dart';
 
 /// Push permission offer screen. Shows a branded background image
-/// (portrait or landscape) with Accept / Skip buttons styled in
+/// (portrait or landscape) with Allow / Dismiss buttons styled in
 /// blue/steel to match the TowerDash Bricks crane construction theme.
 class NotifyScreen extends StatefulWidget {
   final BrickVault vault;
@@ -34,8 +34,8 @@ class NotifyScreen extends StatefulWidget {
 
 class _NotifyScreenState extends State<NotifyScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
-  bool _busy = false;
-  late final AnimationController _shimmer;
+  bool _loading = false;
+  late final AnimationController _pulse;
   late final AnimationController _glow;
 
   @override
@@ -48,7 +48,7 @@ class _NotifyScreenState extends State<NotifyScreen>
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
-    _shimmer = AnimationController(
+    _pulse = AnimationController(
       vsync: this, duration: const Duration(milliseconds: 2200),
     )..repeat();
     _glow = AnimationController(
@@ -64,14 +64,14 @@ class _NotifyScreenState extends State<NotifyScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _shimmer.dispose();
+    _pulse.dispose();
     _glow.dispose();
     super.dispose();
   }
 
-  Future<void> _accept() async {
-    if (_busy) return;
-    setState(() => _busy = true);
+  Future<void> _onAllow() async {
+    if (_loading) return;
+    setState(() => _loading = true);
     try {
       final granted = await widget.beacon.askConsent();
       if (granted) {
@@ -80,27 +80,27 @@ class _NotifyScreenState extends State<NotifyScreen>
           await widget.onTokenReady?.call(token);
         }
       } else {
-        await _setCooldown();
+        await _scheduleReminder();
       }
-      _openBrowser();
+      _proceedToBrowser();
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<void> _skip() async {
-    if (_busy) return;
-    await _setCooldown();
-    _openBrowser();
+  Future<void> _onDismiss() async {
+    if (_loading) return;
+    await _scheduleReminder();
+    _proceedToBrowser();
   }
 
-  Future<void> _setCooldown() async {
+  Future<void> _scheduleReminder() async {
     final until = DateTime.now().millisecondsSinceEpoch ~/ 1000 +
         BrickConfig.pushCooldownSeconds;
     await widget.vault.writePushCooldown(until);
   }
 
-  void _openBrowser() {
+  void _proceedToBrowser() {
     if (!mounted) return;
     Navigator.of(context).pushReplacement(MaterialPageRoute(
       builder: (_) => BrickBrowser(
@@ -141,16 +141,16 @@ class _NotifyScreenState extends State<NotifyScreen>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        _AcceptButton(
+                        _AllowButton(
                           width: btnW,
-                          busy: _busy,
-                          shimmer: _shimmer,
+                          loading: _loading,
+                          pulse: _pulse,
                           glow: _glow,
-                          onTap: _accept,
+                          onTap: _onAllow,
                           compact: landscape,
                         ),
                         SizedBox(height: mq.size.height * 0.022),
-                        _SkipButton(onTap: _skip, compact: landscape),
+                        _DismissButton(onTap: _onDismiss, compact: landscape),
                       ],
                     ),
                   ),
@@ -164,42 +164,42 @@ class _NotifyScreenState extends State<NotifyScreen>
   }
 }
 
-// ── Blue/Steel Accept button — matches TowerDash Bricks crane theme ───────
-class _AcceptButton extends StatefulWidget {
+// ── Blue/Steel Allow button — TowerDash Bricks crane construction theme ──
+class _AllowButton extends StatefulWidget {
   final double width;
-  final bool busy;
+  final bool loading;
   final bool compact;
-  final AnimationController shimmer;
+  final AnimationController pulse;
   final AnimationController glow;
   final VoidCallback onTap;
-  const _AcceptButton({
-    required this.width, required this.busy, required this.shimmer,
+  const _AllowButton({
+    required this.width, required this.loading, required this.pulse,
     required this.glow, required this.onTap, this.compact = false,
   });
   @override
-  State<_AcceptButton> createState() => _AcceptButtonState();
+  State<_AllowButton> createState() => _AllowButtonState();
 }
 
-class _AcceptButtonState extends State<_AcceptButton>
+class _AllowButtonState extends State<_AllowButton>
     with SingleTickerProviderStateMixin {
   bool _pressed = false;
-  late final AnimationController _press = AnimationController(
+  late final AnimationController _pressAnim = AnimationController(
     vsync: this, duration: const Duration(milliseconds: 100),
   );
   @override
-  void dispose() { _press.dispose(); super.dispose(); }
+  void dispose() { _pressAnim.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
     final fontSize = widget.compact ? 16.0 : 20.0;
     return GestureDetector(
-      onTapDown: (_) { setState(() => _pressed = true); _press.forward(); },
-      onTapUp: (_) { setState(() => _pressed = false); _press.reverse(); widget.onTap(); },
-      onTapCancel: () { setState(() => _pressed = false); _press.reverse(); },
+      onTapDown: (_) { setState(() => _pressed = true); _pressAnim.forward(); },
+      onTapUp: (_) { setState(() => _pressed = false); _pressAnim.reverse(); widget.onTap(); },
+      onTapCancel: () { setState(() => _pressed = false); _pressAnim.reverse(); },
       child: AnimatedBuilder(
-        animation: Listenable.merge([_press, widget.glow]),
+        animation: Listenable.merge([_pressAnim, widget.glow]),
         builder: (_, child) => Transform.scale(
-          scale: 1.0 - 0.04 * _press.value,
+          scale: 1.0 - 0.04 * _pressAnim.value,
           child: Container(
             width: widget.width,
             padding: EdgeInsets.symmetric(vertical: widget.compact ? 12 : 17),
@@ -221,7 +221,7 @@ class _AcceptButtonState extends State<_AcceptButton>
               ],
             ),
             child: Center(
-              child: widget.busy
+              child: widget.loading
                   ? SizedBox(
                       width: fontSize + 4, height: fontSize + 4,
                       child: const CircularProgressIndicator(
@@ -229,7 +229,7 @@ class _AcceptButtonState extends State<_AcceptButton>
                         color: Colors.white,
                       ),
                     )
-                  : Text('Accept',
+                  : Text('Allow',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: fontSize,
@@ -244,15 +244,15 @@ class _AcceptButtonState extends State<_AcceptButton>
   }
 }
 
-class _SkipButton extends StatefulWidget {
+class _DismissButton extends StatefulWidget {
   final VoidCallback onTap;
   final bool compact;
-  const _SkipButton({required this.onTap, this.compact = false});
+  const _DismissButton({required this.onTap, this.compact = false});
   @override
-  State<_SkipButton> createState() => _SkipButtonState();
+  State<_DismissButton> createState() => _DismissButtonState();
 }
 
-class _SkipButtonState extends State<_SkipButton> {
+class _DismissButtonState extends State<_DismissButton> {
   bool _pressed = false;
   @override
   Widget build(BuildContext context) {
@@ -265,7 +265,7 @@ class _SkipButtonState extends State<_SkipButton> {
         duration: const Duration(milliseconds: 80),
         child: Padding(
           padding: EdgeInsets.symmetric(vertical: widget.compact ? 4 : 8),
-          child: Text('Skip',
+          child: Text('Not Now',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: widget.compact ? 16 : 22,

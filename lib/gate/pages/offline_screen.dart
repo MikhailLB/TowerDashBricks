@@ -19,15 +19,15 @@ class OfflineScreen extends StatefulWidget {
 
 class _OfflineScreenState extends State<OfflineScreen>
     with SingleTickerProviderStateMixin {
-  bool _busy = false;
-  bool _hint = false;
-  Timer? _hintTimer;
-  late final AnimationController _press;
+  bool _checking = false;
+  bool _showHint = false;
+  Timer? _hintTimeout;
+  late final AnimationController _pressAnim;
 
   @override
   void initState() {
     super.initState();
-    _press = AnimationController(
+    _pressAnim = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 130),
     );
@@ -35,25 +35,25 @@ class _OfflineScreenState extends State<OfflineScreen>
 
   @override
   void dispose() {
-    _hintTimer?.cancel();
-    _press.dispose();
+    _hintTimeout?.cancel();
+    _pressAnim.dispose();
     super.dispose();
   }
 
-  Future<void> _retry() async {
-    if (_busy) return;
+  Future<void> _attemptReconnect() async {
+    if (_checking) return;
     HapticFeedback.lightImpact();
-    await _press.forward();
-    await _press.reverse();
+    await _pressAnim.forward();
+    await _pressAnim.reverse();
     if (!mounted) return;
-    setState(() => _busy = true);
+    setState(() => _checking = true);
     final online = await widget.probe.isOnline();
     if (!mounted) return;
     if (!online) {
-      _hintTimer?.cancel();
-      setState(() { _busy = false; _hint = true; });
-      _hintTimer = Timer(const Duration(seconds: 3), () {
-        if (mounted) setState(() => _hint = false);
+      _hintTimeout?.cancel();
+      setState(() { _checking = false; _showHint = true; });
+      _hintTimeout = Timer(const Duration(seconds: 3), () {
+        if (mounted) setState(() => _showHint = false);
       });
       return;
     }
@@ -64,15 +64,15 @@ class _OfflineScreenState extends State<OfflineScreen>
 
   @override
   Widget build(BuildContext context) {
-    final c = MediaQuery.of(context);
-    final landscape = c.size.width > c.size.height;
+    final mq = MediaQuery.of(context);
+    final landscape = mq.size.width > mq.size.height;
     final bgAsset = landscape
         ? 'assets/additional_assets/no_wifi/16x9_no_wifi_screen.webp'
         : 'assets/additional_assets/no_wifi/9x16_no_wifi_screen.webp';
     final btnW = landscape
-        ? (c.size.width * 0.24).clamp(200.0, 340.0)
-        : (c.size.width * 0.52).clamp(180.0, 300.0);
-    final btnBottom = landscape ? c.size.height * 0.05 : c.size.height * 0.18;
+        ? (mq.size.width * 0.24).clamp(200.0, 340.0)
+        : (mq.size.width * 0.52).clamp(180.0, 300.0);
+    final btnBottom = landscape ? mq.size.height * 0.05 : mq.size.height * 0.18;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -85,12 +85,12 @@ class _OfflineScreenState extends State<OfflineScreen>
             left: 0, right: 0, bottom: btnBottom,
             child: Center(
               child: AnimatedBuilder(
-                animation: _press,
+                animation: _pressAnim,
                 builder: (_, child) => Transform.scale(
-                  scale: 1.0 - 0.05 * _press.value, child: child,
+                  scale: 1.0 - 0.05 * _pressAnim.value, child: child,
                 ),
                 child: GestureDetector(
-                  onTap: _busy ? null : _retry,
+                  onTap: _checking ? null : _attemptReconnect,
                   child: SizedBox(
                     width: btnW,
                     child: AspectRatio(
@@ -98,18 +98,18 @@ class _OfflineScreenState extends State<OfflineScreen>
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(28),
-                          gradient: _busy
+                          gradient: _checking
                               ? null
                               : const LinearGradient(
                                   colors: [Color(0xFF1E6FBF), Color(0xFF103D6E)],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
-                          color: _busy ? const Color(0xFF1E6FBF).withValues(alpha: 0.3) : null,
+                          color: _checking ? const Color(0xFF1E6FBF).withValues(alpha: 0.3) : null,
                           border: Border.all(color: const Color(0xFF082E55), width: 3),
                         ),
                         child: Center(
-                          child: _busy
+                          child: _checking
                               ? const SizedBox(
                                   width: 24, height: 24,
                                   child: CircularProgressIndicator(
@@ -123,7 +123,7 @@ class _OfflineScreenState extends State<OfflineScreen>
                                     Icon(Icons.refresh_rounded,
                                         color: Colors.white, size: 26),
                                     SizedBox(width: 8),
-                                    Text('Retry',
+                                    Text('Try Again',
                                         style: TextStyle(
                                           color: Colors.white,
                                           fontSize: 20,
@@ -149,7 +149,7 @@ class _OfflineScreenState extends State<OfflineScreen>
                   vertical: landscape ? 12 : 16,
                 ),
                 child: AnimatedOpacity(
-                  opacity: _hint ? 1.0 : 0.0,
+                  opacity: _showHint ? 1.0 : 0.0,
                   duration: const Duration(milliseconds: 250),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
@@ -159,7 +159,7 @@ class _OfflineScreenState extends State<OfflineScreen>
                     child: const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       child: Text(
-                        'Still no internet — please try again.',
+                        'No connection — please check your network.',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.white, fontSize: 13),
                       ),

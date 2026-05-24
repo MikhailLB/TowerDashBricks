@@ -17,7 +17,7 @@ import 'brick_browser.dart';
 import 'offline_screen.dart';
 import 'notify_screen.dart';
 
-enum _LoadStep { empty, midway, done }
+enum _BootPhase { idle, loading, ready }
 
 /// ★ Core gray gate screen for TowerDash Bricks. Shows loading splash video
 /// while running the attribution + config pipeline, then routes to WebView
@@ -43,11 +43,11 @@ class BrickGateLoader extends StatefulWidget {
 }
 
 class _BrickGateLoaderState extends State<BrickGateLoader> {
-  VideoPlayerController? _vid;
-  bool _vidReady = false;
-  _LoadStep _step = _LoadStep.empty;
-  bool _navigated = false;
-  Orientation? _lastOrientation;
+  VideoPlayerController? _player;
+  bool _videoReady = false;
+  _BootPhase _phase = _BootPhase.idle;
+  bool _routed = false;
+  Orientation? _prevOrientation;
 
   @override
   void initState() {
@@ -56,21 +56,21 @@ class _BrickGateLoaderState extends State<BrickGateLoader> {
       DeviceOrientation.portraitUp, DeviceOrientation.portraitDown,
       DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight,
     ]);
-    _boot();
+    _launch();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final o = MediaQuery.of(context).orientation;
-    if (o != _lastOrientation) { _lastOrientation = o; _switchVideo(o); }
+    if (o != _prevOrientation) { _prevOrientation = o; _updateVideo(o); }
   }
 
-  Future<void> _switchVideo(Orientation o) async {
+  Future<void> _updateVideo(Orientation o) async {
     final asset = o == Orientation.landscape
         ? 'assets/splash/16x9_loading_screen.mp4'
         : 'assets/splash/9x16_loading_screen.mp4';
-    final old = _vid;
+    final prev = _player;
     final ctrl = VideoPlayerController.asset(asset);
     try {
       await ctrl.initialize();
@@ -78,17 +78,17 @@ class _BrickGateLoaderState extends State<BrickGateLoader> {
       ctrl.setVolume(0);
       ctrl.play();
       if (!mounted) { ctrl.dispose(); return; }
-      setState(() { _vid = ctrl; _vidReady = true; });
-      old?.dispose();
+      setState(() { _player = ctrl; _videoReady = true; });
+      prev?.dispose();
     } catch (_) {
       ctrl.dispose();
     }
   }
 
-  void _setStep(_LoadStep s) { if (mounted) setState(() => _step = s); }
+  void _setPhase(_BootPhase p) { if (mounted) setState(() => _phase = p); }
 
-  Future<void> _boot() async {
-    widget.beacon.onTokenRefresh = _onTokenRefresh;
+  Future<void> _launch() async {
+    widget.beacon.onTokenRefresh = _handleTokenUpdate;
 
     // ── HIGHEST PRIORITY: SceneDelegate cold-start URL ─────────────────
     // When the app is KILLED and the user taps a push notification, iOS
@@ -103,36 +103,36 @@ class _BrickGateLoaderState extends State<BrickGateLoader> {
       debugPrint('[TDB.GL] native cold-start url → $nativeColdUrl');
       await widget.vault.writeMode(AppMode.web);
       await widget.vault.consumeOneShotUrl();
-      unawaited(_dispatchBackground());
+      unawaited(_sendAttribution());
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        _goContent(nativeColdUrl);
+        _routeToContent(nativeColdUrl);
       });
       return;
     }
 
-    _setStep(_LoadStep.empty);
+    _setPhase(_BootPhase.idle);
     final mode = widget.vault.readMode();
 
     switch (mode) {
       case AppMode.web:
-        _setStep(_LoadStep.midway);
+        _setPhase(_BootPhase.loading);
         final pushFuture = widget.beacon.bootstrap().catchError((_) {});
-        await _handleWebMode(pushFuture: pushFuture);
+        await _runWebSession(pushFuture: pushFuture);
         break;
       case AppMode.game:
-        _setStep(_LoadStep.midway);
+        _setPhase(_BootPhase.loading);
         unawaited(widget.beacon.bootstrap().catchError((_) {}));
-        final recovered = await _tryRecoverWebMode();
+        final recovered = await _attemptWebRecovery();
         if (recovered) return;
-        _setStep(_LoadStep.done);
+        _setPhase(_BootPhase.ready);
         await Future.delayed(const Duration(milliseconds: 600));
-        _goGame();
+        _routeToGame();
         break;
       case AppMode.fresh:
         await widget.beacon.bootstrap().catchError((_) {});
-        await _handleFreshMode();
+        await _runFirstLaunch();
         break;
     }
   }
@@ -140,11 +140,11 @@ class _BrickGateLoaderState extends State<BrickGateLoader> {
   @override
   void dispose() {
     widget.beacon.onTokenRefresh = null;
-    _vid?.dispose();
+    _player?.dispose();
     super.dispose();
   }
 
-  Future<void> _dispatchBackground() async {
+  Future<void> _sendAttribution() async {
     try {
       await Future.wait([
         widget.beacon.bootstrap().catchError((_) {}),
@@ -160,11 +160,11 @@ class _BrickGateLoaderState extends State<BrickGateLoader> {
       );
       await widget.dispatch.send(body);
     } catch (e) {
-      debugPrint('[TDB.GL] background dispatch error: $e');
+      debugPrint('[TDB.GL] attribution error: $e');
     }
   }
 
-  void _onTokenRefresh(String token) async {
+  void _handleTokenUpdate(String token) async {
     final locale = Platform.localeName.replaceAll('-', '_');
     final body = await widget.signal.buildPayload(
       locale: locale, pushToken: token,
@@ -172,12 +172,12 @@ class _BrickGateLoaderState extends State<BrickGateLoader> {
     widget.dispatch.send(body);
   }
 
-  Future<void> _handleFreshMode() async {
-    _setStep(_LoadStep.empty);
+  Future<void> _runFirstLaunch() async {
+    _setPhase(_BootPhase.idle);
     final online = await widget.probe.isOnline();
-    if (!online) { if (mounted) _goOffline(fresh: true); return; }
+    if (!online) { if (mounted) _routeOffline(isFirstLaunch: true); return; }
 
-    _setStep(_LoadStep.midway);
+    _setPhase(_BootPhase.loading);
     await widget.signal.warmup();
     await Future.wait([
       widget.signal.awaitConversion(),
@@ -191,36 +191,36 @@ class _BrickGateLoaderState extends State<BrickGateLoader> {
 
     if (reply.granted && reply.destination != null) {
       await widget.vault.writeMode(AppMode.web);
-      _setStep(_LoadStep.done);
+      _setPhase(_BootPhase.ready);
       await Future.delayed(const Duration(milliseconds: 400));
       if (!mounted) return;
-      _goContent(reply.destination!);
+      _routeToContent(reply.destination!);
     } else {
       await widget.vault.writeMode(AppMode.game);
-      _setStep(_LoadStep.done);
+      _setPhase(_BootPhase.ready);
       await Future.delayed(const Duration(milliseconds: 400));
       if (!mounted) return;
-      _goGame();
+      _routeToGame();
     }
   }
 
-  Future<void> _handleWebMode({Future<void>? pushFuture}) async {
+  Future<void> _runWebSession({Future<void>? pushFuture}) async {
     final netFuture = widget.probe.isOnline();
     if (pushFuture != null) await Future.wait([netFuture, pushFuture]);
     final online = await netFuture;
 
     if (!online) {
-      _setStep(_LoadStep.done);
+      _setPhase(_BootPhase.ready);
       await Future.delayed(const Duration(milliseconds: 400));
-      if (mounted) _goOffline(fresh: false);
+      if (mounted) _routeOffline(isFirstLaunch: false);
       return;
     }
 
     final oneShotUrl = await widget.vault.consumeOneShotUrl();
     if (oneShotUrl != null) {
-      _setStep(_LoadStep.done);
+      _setPhase(_BootPhase.ready);
       await Future.delayed(const Duration(milliseconds: 400));
-      if (mounted) _goContent(oneShotUrl);
+      if (mounted) _routeToContent(oneShotUrl);
       return;
     }
 
@@ -237,22 +237,22 @@ class _BrickGateLoaderState extends State<BrickGateLoader> {
     );
     final reply = await widget.dispatch.send(body);
 
-    _setStep(_LoadStep.done);
+    _setPhase(_BootPhase.ready);
     await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
 
     if (reply.granted && reply.destination != null) {
-      _goContent(reply.destination!);
+      _routeToContent(reply.destination!);
       return;
     }
     if (savedUrl != null) {
-      _goContent(savedUrl);
+      _routeToContent(savedUrl);
     } else {
-      _goOffline(fresh: false);
+      _routeOffline(isFirstLaunch: false);
     }
   }
 
-  Future<bool> _tryRecoverWebMode() async {
+  Future<bool> _attemptWebRecovery() async {
     final online = await widget.probe.isOnline();
     if (!online) return false;
     await widget.signal.warmup();
@@ -267,16 +267,16 @@ class _BrickGateLoaderState extends State<BrickGateLoader> {
     final reply = await widget.dispatch.send(body);
     if (!(reply.granted && reply.destination != null)) return false;
     await widget.vault.writeMode(AppMode.web);
-    _setStep(_LoadStep.done);
+    _setPhase(_BootPhase.ready);
     await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return true;
-    _goContent(reply.destination!);
+    _routeToContent(reply.destination!);
     return true;
   }
 
-  void _goContent(String url, {bool coldStartPush = false}) {
-    if (_navigated) return;
-    _navigated = true;
+  void _routeToContent(String url, {bool coldStartPush = false}) {
+    if (_routed) return;
+    _routed = true;
     if (widget.vault.needsPushPrompt()) {
       widget.beacon.shouldOfferConsent().then((canAsk) {
         if (!mounted) return;
@@ -298,15 +298,15 @@ class _BrickGateLoaderState extends State<BrickGateLoader> {
             ),
           ));
         } else {
-          _directBrowser(url, coldStartPush: coldStartPush);
+          _openBrowser(url, coldStartPush: coldStartPush);
         }
       });
     } else {
-      _directBrowser(url, coldStartPush: coldStartPush);
+      _openBrowser(url, coldStartPush: coldStartPush);
     }
   }
 
-  void _directBrowser(String url, {bool coldStartPush = false}) {
+  void _openBrowser(String url, {bool coldStartPush = false}) {
     if (!mounted) return;
     Navigator.of(context).pushReplacement(MaterialPageRoute(
       builder: (_) => BrickBrowser(
@@ -319,17 +319,17 @@ class _BrickGateLoaderState extends State<BrickGateLoader> {
     ));
   }
 
-  void _goGame() {
-    if (_navigated) return;
-    _navigated = true;
+  void _routeToGame() {
+    if (_routed) return;
+    _routed = true;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const WhiteGameEntry()),
     );
   }
 
-  void _goOffline({required bool fresh}) {
-    if (_navigated) return;
-    _navigated = true;
+  void _routeOffline({required bool isFirstLaunch}) {
+    if (_routed) return;
+    _routed = true;
     Navigator.of(context).pushReplacement(MaterialPageRoute(
       builder: (_) => OfflineScreen(
         probe: widget.probe,
@@ -344,17 +344,17 @@ class _BrickGateLoaderState extends State<BrickGateLoader> {
     ));
   }
 
-  String _barAsset() {
-    switch (_step) {
-      case _LoadStep.empty:  return 'assets/splash/tdb_bar_1.webp';
-      case _LoadStep.midway: return 'assets/splash/tdb_bar_2.webp';
-      case _LoadStep.done:   return 'assets/splash/tdb_bar_4.webp';
+  String _progressBarImage() {
+    switch (_phase) {
+      case _BootPhase.idle:    return 'assets/splash/tdb_bar_1.webp';
+      case _BootPhase.loading: return 'assets/splash/tdb_bar_2.webp';
+      case _BootPhase.ready:   return 'assets/splash/tdb_bar_4.webp';
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final barAsset = _barAsset();
+    final barImage = _progressBarImage();
     final mq = MediaQuery.of(context);
     final landscape = mq.orientation == Orientation.landscape;
     final barW = landscape
@@ -368,22 +368,22 @@ class _BrickGateLoaderState extends State<BrickGateLoader> {
         children: [
           const ColoredBox(color: Colors.black),
           AnimatedOpacity(
-            opacity: _vidReady ? 1.0 : 0.0,
+            opacity: _videoReady ? 1.0 : 0.0,
             duration: const Duration(milliseconds: 400),
-            child: _vid != null && _vidReady
+            child: _player != null && _videoReady
                 ? SizedBox.expand(
                     child: FittedBox(
                       fit: BoxFit.cover,
                       child: SizedBox(
-                        width: _vid!.value.size.width,
-                        height: _vid!.value.size.height,
-                        child: VideoPlayer(_vid!),
+                        width: _player!.value.size.width,
+                        height: _player!.value.size.height,
+                        child: VideoPlayer(_player!),
                       ),
                     ),
                   )
                 : const SizedBox.shrink(),
           ),
-          if (_vidReady)
+          if (_videoReady)
             Positioned(
               left: 0, right: 0,
               bottom: landscape ? 0 : mq.padding.bottom,
@@ -391,8 +391,8 @@ class _BrickGateLoaderState extends State<BrickGateLoader> {
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
                   child: Image.asset(
-                    barAsset,
-                    key: ValueKey(barAsset),
+                    barImage,
+                    key: ValueKey(barImage),
                     width: barW,
                     fit: BoxFit.contain,
                     gaplessPlayback: true,

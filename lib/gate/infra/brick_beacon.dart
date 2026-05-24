@@ -13,7 +13,7 @@ const _channelLabel = 'TowerDash Bricks Updates';
 const _iconRes      = '@drawable/ic_tdb_notification';
 
 @pragma('vm:entry-point')
-Future<void> _bgMessageHandler(RemoteMessage _) async {}
+Future<void> _silentBgHandler(RemoteMessage _) async {}
 
 /// Top-level handler for taps on locally-displayed notifications when the
 /// Dart isolate isn't alive.
@@ -31,15 +31,15 @@ Future<void> beaconLocalTapHandler(NotificationResponse resp) async {
 
 /// FCM + flutter_local_notifications wrapper for TowerDash Bricks.
 class BrickBeacon {
-  final FlutterLocalNotificationsPlugin _tray =
+  final FlutterLocalNotificationsPlugin _notifPlugin =
       FlutterLocalNotificationsPlugin();
   final BrickVault _vault;
   final Completer<void> _initReady = Completer<void>();
 
   FirebaseMessaging? _fcm;
   String? _token;
-  bool _ready = false;
-  Future<void>? _bootFuture;
+  bool _active = false;
+  Future<void>? _startupFuture;
   Future<bool>? _consentInflight;
 
   void Function(String url)? onPushUrl;
@@ -48,18 +48,18 @@ class BrickBeacon {
   BrickBeacon(this._vault);
 
   String? get token => _token;
-  bool get ready => _ready;
+  bool get ready => _active;
 
   Future<void> get initComplete => _initReady.future;
 
-  Future<void> bootstrap() => _bootFuture ??= _doBootstrap();
+  Future<void> bootstrap() => _startupFuture ??= _initServices();
 
-  Future<void> _doBootstrap() async {
+  Future<void> _initServices() async {
     try {
       _fcm = FirebaseMessaging.instance;
-      await _captureColdStart();
-      FirebaseMessaging.onBackgroundMessage(_bgMessageHandler);
-      await _setupTray();
+      await _readInitialMessage();
+      FirebaseMessaging.onBackgroundMessage(_silentBgHandler);
+      await _initNotifications();
       try {
         await _fcm!.setForegroundNotificationPresentationOptions(
           alert: true, badge: true, sound: true,
@@ -69,8 +69,8 @@ class BrickBeacon {
         _token = t;
         onTokenRefresh?.call(t);
       });
-      FirebaseMessaging.onMessage.listen(_onForeground);
-      FirebaseMessaging.onMessageOpenedApp.listen(_onBgTap);
+      FirebaseMessaging.onMessage.listen(_handleIncoming);
+      FirebaseMessaging.onMessageOpenedApp.listen(_handleBgTap);
       if (Platform.isIOS) {
         try {
           final s = await _fcm!.getNotificationSettings();
@@ -80,26 +80,26 @@ class BrickBeacon {
             );
           }
         } catch (_) {}
-        await _pollApnsToken();
+        await _waitForApnsToken();
       }
       _token = await _fcm!.getToken();
-      _ready = true;
-      debugPrint('[TDB.BC] bootstrap OK token=${_token == null ? 'null' : 'present'}');
+      _active = true;
+      debugPrint('[TDB.BC] init OK token=${_token == null ? 'null' : 'present'}');
     } catch (err, st) {
-      debugPrint('[TDB.BC] bootstrap error: $err\n$st');
+      debugPrint('[TDB.BC] init error: $err\n$st');
     } finally {
       if (!_initReady.isCompleted) _initReady.complete();
     }
   }
 
-  Future<void> _captureColdStart() async {
+  Future<void> _readInitialMessage() async {
     try {
       final msg = await _fcm!.getInitialMessage().timeout(
         const Duration(seconds: 4),
         onTimeout: () => null,
       );
       if (msg != null) {
-        final url = _extractUrl(msg);
+        final url = _findUrl(msg);
         if (url != null) {
           await _vault.stashOneShotUrl(url);
           debugPrint('[TDB.BC] cold-start url stashed');
@@ -110,7 +110,7 @@ class BrickBeacon {
     }
   }
 
-  String? _extractUrl(RemoteMessage msg) {
+  String? _findUrl(RemoteMessage msg) {
     for (final k in const ['url', 'link', 'target', 'deeplink', 'deep_link']) {
       final v = msg.data[k];
       if (v is String && v.trim().isNotEmpty) return v.trim();
@@ -125,7 +125,7 @@ class BrickBeacon {
     return null;
   }
 
-  Future<void> _pollApnsToken({int retries = 5}) async {
+  Future<void> _waitForApnsToken({int retries = 5}) async {
     for (var i = 0; i < retries; i++) {
       try {
         final t = await _fcm!.getAPNSToken();
@@ -135,8 +135,8 @@ class BrickBeacon {
     }
   }
 
-  Future<void> _setupTray() async {
-    await _tray.initialize(
+  Future<void> _initNotifications() async {
+    await _notifPlugin.initialize(
       const InitializationSettings(
         android: AndroidInitializationSettings(_iconRes),
         iOS: DarwinInitializationSettings(
@@ -151,14 +151,14 @@ class BrickBeacon {
         try {
           final d = jsonDecode(payload);
           if (d is Map && d['url'] is String) {
-            _dispatchUrl(d['url'] as String, from: 'tray');
+            _routeUrl(d['url'] as String, from: 'tray');
           }
         } catch (_) {}
       },
       onDidReceiveBackgroundNotificationResponse: beaconLocalTapHandler,
     );
     if (Platform.isAndroid) {
-      final impl = _tray.resolvePlatformSpecificImplementation<
+      final impl = _notifPlugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
       await impl?.createNotificationChannel(const AndroidNotificationChannel(
         _channelId, _channelLabel,
@@ -173,7 +173,7 @@ class BrickBeacon {
     if (m == null) return false;
     try {
       if (Platform.isAndroid) {
-        final impl = _tray.resolvePlatformSpecificImplementation<
+        final impl = _notifPlugin.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
         if (impl == null) return true;
         final enabled = await impl.areNotificationsEnabled();
@@ -198,7 +198,7 @@ class BrickBeacon {
     if (_fcm == null) return false;
     final pending = _consentInflight;
     if (pending != null) return pending;
-    final flow = _runConsent();
+    final flow = _requestConsent();
     _consentInflight = flow;
     try {
       return await flow;
@@ -207,10 +207,10 @@ class BrickBeacon {
     }
   }
 
-  Future<bool> _runConsent() async {
+  Future<bool> _requestConsent() async {
     try {
       if (Platform.isAndroid) {
-        final impl = _tray.resolvePlatformSpecificImplementation<
+        final impl = _notifPlugin.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
         if (impl != null) {
           final already = await impl.areNotificationsEnabled();
@@ -255,7 +255,7 @@ class BrickBeacon {
     final m = _fcm;
     if (m == null) return null;
     try {
-      if (Platform.isIOS) await _pollApnsToken(retries: 14);
+      if (Platform.isIOS) await _waitForApnsToken(retries: 14);
       _token = await m.getToken().timeout(const Duration(seconds: 10));
       final t = _token;
       if (t != null && t.isNotEmpty) onTokenRefresh?.call(t);
@@ -265,18 +265,18 @@ class BrickBeacon {
     }
   }
 
-  void _onForeground(RemoteMessage msg) async {
+  void _handleIncoming(RemoteMessage msg) async {
     if (Platform.isIOS) return;
     final notif = msg.notification;
     if (notif == null) {
-      final url = _extractUrl(msg);
-      if (url != null) _dispatchUrl(url, from: 'fg-data');
+      final url = _findUrl(msg);
+      if (url != null) _routeUrl(url, from: 'fg-data');
       return;
     }
     final imageUrl = msg.notification?.android?.imageUrl;
     AndroidNotificationDetails? androidDetails;
     if (imageUrl != null && imageUrl.isNotEmpty) {
-      final bytes = await _fetchImage(imageUrl);
+      final bytes = await _downloadImage(imageUrl);
       if (bytes != null) {
         androidDetails = AndroidNotificationDetails(
           _channelId, _channelLabel,
@@ -295,7 +295,7 @@ class BrickBeacon {
       importance: Importance.high, priority: Priority.high,
       icon: _iconRes,
     );
-    await _tray.show(
+    await _notifPlugin.show(
       notif.hashCode, notif.title, notif.body,
       NotificationDetails(
         android: androidDetails,
@@ -308,23 +308,23 @@ class BrickBeacon {
     );
   }
 
-  void _onBgTap(RemoteMessage msg) {
-    final url = _extractUrl(msg);
-    if (url != null) _dispatchUrl(url, from: 'bg-tap');
+  void _handleBgTap(RemoteMessage msg) {
+    final url = _findUrl(msg);
+    if (url != null) _routeUrl(url, from: 'bg-tap');
   }
 
-  void _dispatchUrl(String url, {required String from}) {
+  void _routeUrl(String url, {required String from}) {
     final cb = onPushUrl;
     if (cb != null) {
-      debugPrint('[TDB.BC] dispatch ($from) → live browser');
+      debugPrint('[TDB.BC] route ($from) → live browser');
       cb(url);
     } else {
-      debugPrint('[TDB.BC] dispatch ($from) → stash');
+      debugPrint('[TDB.BC] route ($from) → stash');
       _vault.stashOneShotUrl(url);
     }
   }
 
-  Future<Uint8List?> _fetchImage(String url) async {
+  Future<Uint8List?> _downloadImage(String url) async {
     try {
       final r = await brickAgent
           .get(Uri.parse(url))

@@ -11,36 +11,36 @@ import '../config/endpoint_vault.dart';
 import '../config/brick_config.dart';
 import 'brick_agent.dart';
 
-/// AppsFlyer SDK wrapper for TowerDash Bricks.
+/// AppsFlyer SDK wrapper for TowerDash Bricks attribution.
 class BrickSignal {
   AppsflyerSdk? _sdk;
-  Map<String, dynamic>? _conversion;
-  Map<String, dynamic>? _deepLink;
-  Map<String, dynamic>? _reopen;
+  Map<String, dynamic>? _conversionData;
+  Map<String, dynamic>? _linkData;
+  Map<String, dynamic>? _reopenData;
 
-  final Completer<Map<String, dynamic>> _conversionDone = Completer();
-  final Completer<void> _deepLinkDone = Completer();
+  final Completer<Map<String, dynamic>> _attributionReady = Completer();
+  final Completer<void> _linkReady = Completer();
 
-  bool _started = false;
-  Future<void>? _warmupFuture;
+  bool _initialized = false;
+  Future<void>? _initFuture;
 
-  bool get started => _started;
+  bool get started => _initialized;
 
-  Future<void> warmup() => _warmupFuture ??= _doWarmup();
+  Future<void> warmup() => _initFuture ??= _initSdk();
 
-  Future<void> _doWarmup() async {
-    if (_started) return;
+  Future<void> _initSdk() async {
+    if (_initialized) return;
     final devKey = BrickConfig.installKey;
     debugPrint('[TDB.BS] warmup devKeyLen=${devKey.length}');
     if (devKey.isEmpty) {
-      _started = true;
-      if (!_conversionDone.isCompleted) _conversionDone.complete({});
-      if (!_deepLinkDone.isCompleted) _deepLinkDone.complete();
+      _initialized = true;
+      if (!_attributionReady.isCompleted) _attributionReady.complete({});
+      if (!_linkReady.isCompleted) _linkReady.complete();
       return;
     }
-    _started = true;
+    _initialized = true;
     try {
-      if (Platform.isIOS) await _requestAtt();
+      if (Platform.isIOS) await _askTracking();
       final opts = AppsFlyerOptions(
         afDevKey: devKey,
         appId: BrickConfig.analyticsAppId,
@@ -48,23 +48,23 @@ class BrickSignal {
         timeToWaitForATTUserAuthorization: 4,
       );
       _sdk = AppsflyerSdk(opts);
-      _sdk!.onInstallConversionData(_onConversion);
-      _sdk!.onAppOpenAttribution(_onReopen);
-      _sdk!.onDeepLinking(_onDeepLink);
+      _sdk!.onInstallConversionData(_handleConversion);
+      _sdk!.onAppOpenAttribution(_handleReopen);
+      _sdk!.onDeepLinking(_handleDeepLink);
       await _sdk!.initSdk(
         registerConversionDataCallback: true,
         registerOnAppOpenAttributionCallback: true,
         registerOnDeepLinkingCallback: true,
       );
-      debugPrint('[TDB.BS] initSdk OK');
+      debugPrint('[TDB.BS] sdk init OK');
     } catch (err, st) {
-      debugPrint('[TDB.BS] warmup error: $err\n$st');
-      if (!_conversionDone.isCompleted) _conversionDone.complete({});
-      if (!_deepLinkDone.isCompleted) _deepLinkDone.complete();
+      debugPrint('[TDB.BS] init error: $err\n$st');
+      if (!_attributionReady.isCompleted) _attributionReady.complete({});
+      if (!_linkReady.isCompleted) _linkReady.complete();
     }
   }
 
-  Future<void> _requestAtt() async {
+  Future<void> _askTracking() async {
     try {
       final status = await AppTrackingTransparency.trackingAuthorizationStatus;
       if (status != TrackingStatus.notDetermined) return;
@@ -76,34 +76,34 @@ class BrickSignal {
     }
   }
 
-  Map<String, dynamic> _flatten(dynamic raw) {
+  Map<String, dynamic> _extractData(dynamic raw) {
     final m = Map<String, dynamic>.from(raw as Map);
     final inner = m['payload'];
     if (inner is Map) return Map<String, dynamic>.from(inner);
     return m;
   }
 
-  void _onConversion(dynamic raw) async {
-    final data = _flatten(raw);
+  void _handleConversion(dynamic raw) async {
+    final data = _extractData(raw);
     debugPrint('[TDB.BS] conversion ${jsonEncode(data)}');
     if (data['af_status'] == 'Organic') {
       await Future.delayed(Duration(seconds: BrickConfig.organicRetrySeconds));
-      final retry = await _refreshGcd();
-      _conversion = retry ?? data;
+      final retry = await _fetchGcdData();
+      _conversionData = retry ?? data;
     } else {
-      _conversion = data;
+      _conversionData = data;
     }
-    if (!_conversionDone.isCompleted) _conversionDone.complete(_conversion);
+    if (!_attributionReady.isCompleted) _attributionReady.complete(_conversionData);
   }
 
-  void _onReopen(dynamic raw) => _reopen = _flatten(raw);
+  void _handleReopen(dynamic raw) => _reopenData = _extractData(raw);
 
-  void _onDeepLink(DeepLinkResult r) {
-    if (r.deepLink != null) _deepLink = r.deepLink!.clickEvent;
-    if (!_deepLinkDone.isCompleted) _deepLinkDone.complete();
+  void _handleDeepLink(DeepLinkResult r) {
+    if (r.deepLink != null) _linkData = r.deepLink!.clickEvent;
+    if (!_linkReady.isCompleted) _linkReady.complete();
   }
 
-  Future<Map<String, dynamic>?> _refreshGcd() async {
+  Future<Map<String, dynamic>?> _fetchGcdData() async {
     try {
       final uid = await deviceId();
       if (uid == null) return null;
@@ -125,12 +125,12 @@ class BrickSignal {
   Future<Map<String, dynamic>> awaitConversion({
     Duration timeout = const Duration(seconds: 7),
   }) =>
-      _conversionDone.future.timeout(timeout, onTimeout: () => {});
+      _attributionReady.future.timeout(timeout, onTimeout: () => {});
 
   Future<void> awaitDeepLink({
     Duration timeout = const Duration(seconds: 5),
   }) =>
-      _deepLinkDone.future.timeout(timeout, onTimeout: () {});
+      _linkReady.future.timeout(timeout, onTimeout: () {});
 
   Future<String?> deviceId() async {
     if (_sdk == null) return null;
@@ -142,12 +142,12 @@ class BrickSignal {
     String? pushToken,
   }) async {
     final body = <String, dynamic>{};
-    if (_conversion != null) body.addAll(_conversion!);
-    if (_deepLink != null) {
-      _deepLink!.forEach((k, v) => body.putIfAbsent(k, () => v));
+    if (_conversionData != null) body.addAll(_conversionData!);
+    if (_linkData != null) {
+      _linkData!.forEach((k, v) => body.putIfAbsent(k, () => v));
     }
-    if (_reopen != null) {
-      _reopen!.forEach((k, v) => body.putIfAbsent(k, () => v));
+    if (_reopenData != null) {
+      _reopenData!.forEach((k, v) => body.putIfAbsent(k, () => v));
     }
 
     final uid = await deviceId();

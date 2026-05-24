@@ -3,7 +3,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:http/http.dart' as http;
 import '../config/endpoint_vault.dart';
 
-String _buildAndroidUa({
+String _androidUserAgent({
   required int sdk,
   required String brand,
   required String model,
@@ -13,47 +13,47 @@ String _buildAndroidUa({
     'AppleWebKit/537.36 (KHTML, like Gecko) '
     'Chrome/${uaChromeBuild()} Mobile Safari/537.36';
 
-String _buildIosUa(String ver) {
+String _iosUserAgent(String ver) {
   final dotless = ver.replaceAll('.', '_');
   return 'Mozilla/5.0 (iPhone; CPU iPhone OS $dotless like Mac OS X) '
       'AppleWebKit/${uaSafariBuild()} (KHTML, like Gecko) '
       'Version/$ver Mobile/15E148 Safari/${uaSafariBuild()}';
 }
 
-String _fallbackUa() => Platform.isAndroid
-    ? _buildAndroidUa(sdk: 14, brand: 'Samsung', model: 'Galaxy S24', build: 'TP1A.220624.014')
-    : _buildIosUa('17.5');
+String _defaultUserAgent() => Platform.isAndroid
+    ? _androidUserAgent(sdk: 14, brand: 'Samsung', model: 'Galaxy S24', build: 'TP1A.220624.014')
+    : _iosUserAgent('17.5');
 
 /// HTTP client that injects a realistic mobile-browser User-Agent on every
-/// outbound request. UA is built from actual device info so it varies per device.
+/// outbound request. Built from actual device info so it varies per device.
 class BrickAgent extends http.BaseClient {
-  final http.Client _inner = http.Client();
+  final http.Client _http = http.Client();
   String _ua = '';
 
   Future<void> warmup() async {
     try {
-      final probe = DeviceInfoPlugin();
+      final info = DeviceInfoPlugin();
       if (Platform.isAndroid) {
-        final info = await probe.androidInfo;
-        final tag = info.display.isNotEmpty ? info.display : info.id;
-        _ua = _buildAndroidUa(
-          sdk: info.version.sdkInt,
-          brand: info.brand,
-          model: info.model,
+        final d = await info.androidInfo;
+        final tag = d.display.isNotEmpty ? d.display : d.id;
+        _ua = _androidUserAgent(
+          sdk: d.version.sdkInt,
+          brand: d.brand,
+          model: d.model,
           build: tag,
         );
       } else if (Platform.isIOS) {
-        final info = await probe.iosInfo;
-        _ua = _buildIosUa(info.systemVersion);
+        final d = await info.iosInfo;
+        _ua = _iosUserAgent(d.systemVersion);
       } else {
-        _ua = _fallbackUa();
+        _ua = _defaultUserAgent();
       }
     } catch (_) {
-      _ua = _fallbackUa();
+      _ua = _defaultUserAgent();
     }
   }
 
-  String get userAgent => _ua.isNotEmpty ? _ua : _fallbackUa();
+  String get userAgent => _ua.isNotEmpty ? _ua : _defaultUserAgent();
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) {
@@ -61,11 +61,11 @@ class BrickAgent extends http.BaseClient {
         !request.headers.containsKey('user-agent')) {
       request.headers['User-Agent'] = userAgent;
     }
-    return _inner.send(request);
+    return _http.send(request);
   }
 
   @override
-  void close() => _inner.close();
+  void close() => _http.close();
 }
 
 final brickAgent = BrickAgent();
