@@ -207,9 +207,11 @@ class _BrickBrowserState extends State<BrickBrowser>
         _preventAutoZoom();
         _enableVideoAutoplay();
         // gray_flow_guide §2 — recalc viewport once immersive mode settles.
+        // Also triggers setState so Flutter-side Padding recomputes viewPadding.
         Future.delayed(const Duration(milliseconds: 800), () {
           final needsReload = widget.coldStartPush && !_refreshDone;
           if (needsReload) _refreshDone = true;
+          if (mounted) setState(() {}); // re-read viewPadding after immersive settles
           _refreshLayout(reload: needsReload);
         });
         if (!_initialPaintDone) {
@@ -436,7 +438,16 @@ class _BrickBrowserState extends State<BrickBrowser>
 
   @override
   Widget build(BuildContext context) {
-    final safe = MediaQuery.of(context).viewPadding;
+    // On cold-start push tap: don't apply viewPadding — immersiveSticky is still
+    // settling (viewPadding is stale from before system UI was hidden).
+    // Safe-area insets are zeroed by _applyViewportFix() JS injection instead.
+    final safe = widget.coldStartPush ? EdgeInsets.zero
+        : EdgeInsets.only(
+            top: MediaQuery.of(context).viewPadding.top,
+            bottom: MediaQuery.of(context).viewPadding.bottom,
+            left: MediaQuery.of(context).viewPadding.left,
+            right: MediaQuery.of(context).viewPadding.right,
+          );
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
@@ -450,10 +461,7 @@ class _BrickBrowserState extends State<BrickBrowser>
           children: [
             if (_viewportReady)
               Padding(
-                padding: EdgeInsets.only(
-                  top: safe.top, bottom: safe.bottom,
-                  left: safe.left, right: safe.right,
-                ),
+                padding: safe,
                 child: WebViewWidget(controller: _webCtrl),
               )
             else
