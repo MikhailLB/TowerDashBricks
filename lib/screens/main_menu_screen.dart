@@ -1,6 +1,7 @@
 ﻿import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../app/app_orientation.dart';
 import '../app/app_theme.dart';
@@ -30,6 +31,13 @@ class _MainMenuScreenState extends State<MainMenuScreen>
   void initState() {
     super.initState();
     setOrientationsLockedPortrait();
+    // Restore full system UI — gray gate runs immersiveSticky which hides
+    // status bar + home indicator. Without this SafeArea gets zero insets
+    // while the system UI is hidden, then overflows when UI reappears.
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.manual,
+      overlays: SystemUiOverlay.values,
+    );
 
     _floatCtrl = AnimationController(
       vsync: this,
