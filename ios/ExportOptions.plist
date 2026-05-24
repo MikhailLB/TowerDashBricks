@@ -12,8 +12,8 @@
 	<string>Apple Distribution</string>
 	<key>provisioningProfiles</key>
 	<dict>
-		<key>com.stackogames.stacko.tower</key>
-		<string>Stacko Tower  ios_app_store 1779580480</string>
+		<key>com.towerlab.tower.dash.bricks</key>
+		<string>TowerDash Bricks ios_app_store</string>
 	</dict>
 	<key>destination</key>
 	<string>export</string>

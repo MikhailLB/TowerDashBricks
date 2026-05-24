@@ -33,7 +33,7 @@ class AudioService with WidgetsBindingObserver {
   static const _kButtonClick = 'music/button-click-error.mp3';
 
   final GameProgress _progress;
-  final AudioPlayer _bgm = AudioPlayer(playerId: 'stacko_tower_bgm');
+  final AudioPlayer _bgm = AudioPlayer(playerId: 'tdb_bgm');
   Bgm? _currentBgm;
   bool _appInForeground = true;
 

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../app/app_orientation.dart';
 import '../app/app_theme.dart';
-import '../app/stacko_assets.dart';
+import '../app/tdb_assets.dart';
 import '../main.dart';
 import '../services/audio_service.dart';
 import '../widgets/pixel_button.dart';
@@ -38,7 +38,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
 
     _fadeCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 700),
+      duration: const Duration(milliseconds: 600),
     );
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     _fadeCtrl.forward();
@@ -87,7 +87,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
       MaterialPageRoute<void>(
         builder: (_) => const InfoWebScreen(
           title: 'Privacy Policy',
-          url: 'https://stackotower.com/privacy-policy.html',
+          url: 'https://towerdashbriicks.com/privacy-policy.html',
         ),
       ),
     );
@@ -99,7 +99,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
       MaterialPageRoute<void>(
         builder: (_) => const InfoWebScreen(
           title: 'Support',
-          url: 'https://stackotower.com/support.html',
+          url: 'https://towerdashbriicks.com/support.html',
         ),
       ),
     );
@@ -113,132 +113,172 @@ class _MainMenuScreenState extends State<MainMenuScreen>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // --- City background + gradient overlay ---
-          Image.asset(StackoAssets.startBg, fit: BoxFit.cover),
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xDD0D0D1F),
-                  Color(0x881A1035),
-                  Color(0xCC0D0D1F),
-                ],
-                stops: [0.0, 0.45, 1.0],
-              ),
-            ),
-          ),
+          // ── Full city background ──────────────────────────────────────
+          Image.asset(TdbAssets.cityBg, fit: BoxFit.cover),
 
-          // --- Floating building ---
+          // ── Sky-to-transparent gradient overlay (top 55%) ────────────
           Positioned(
-            bottom: size.height * 0.14,
-            left: 0,
-            right: 0,
-            child: AnimatedBuilder(
-              animation: _floatCtrl,
-              builder: (_, child) => Transform.translate(
-                offset: Offset(0, -6 + 12 * _floatCtrl.value),
-                child: child,
-              ),
-              child: Image.asset(
-                StackoAssets.startBuilding,
-                width: size.width * 0.7,
-                fit: BoxFit.contain,
+            top: 0, left: 0, right: 0,
+            height: size.height * 0.55,
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xEE0A1520), Color(0x000A1520)],
+                ),
               ),
             ),
           ),
 
-          // --- Main UI ---
+          // ── Ground fog overlay (bottom 40%) ──────────────────────────
+          Positioned(
+            bottom: 0, left: 0, right: 0,
+            height: size.height * 0.40,
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [Color(0xFF0A1520), Color(0x000A1520)],
+                ),
+              ),
+            ),
+          ),
+
+          // ── Content ──────────────────────────────────────────────────
           FadeTransition(
             opacity: _fadeAnim,
             child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 12),
-
-                    // Top bar
-                    Row(
+              child: Column(
+                children: [
+                  // ─ Top bar ─
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                    child: Row(
                       children: [
-                        _StatPill(
+                        _StatChip(
                           icon: Icons.emoji_events_rounded,
-                          value: 'Best ${progress.highScore}',
-                          glow: AppColors.accent,
+                          label: 'Best',
+                          value: '${progress.highScore}',
+                          color: AppColors.craneYellow,
                         ),
                         const Spacer(),
-                        _StatPill(
-                          icon: Icons.monetization_on_rounded,
+                        _StatChip(
+                          icon: Icons.toll_rounded,
+                          label: 'Coins',
                           value: '${progress.coins}',
-                          glow: AppColors.accent,
+                          color: AppColors.craneYellow,
                         ),
                         const SizedBox(width: 10),
-                        _IconBtn(
+                        _CircleAction(
                           icon: Icons.settings_rounded,
                           onTap: _openSettings,
                         ),
                       ],
                     ),
+                  ),
 
-                    const SizedBox(height: 20),
-
-                    // Game logo / name
-                    Container(
+                  // ─ Logo ─
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                    child: Container(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.accent.withValues(alpha: 0.25),
-                            blurRadius: 40,
-                            spreadRadius: 4,
+                            color: AppColors.accent.withValues(alpha: 0.4),
+                            blurRadius: 60,
+                            spreadRadius: 10,
                           ),
                         ],
                       ),
                       child: Image.asset(
-                        StackoAssets.gameName,
-                        width: size.width * 0.82,
+                        TdbAssets.gameName,
+                        width: size.width * 0.80,
                         fit: BoxFit.contain,
                       ),
                     ),
+                  ),
 
-                    const Spacer(),
+                  const Spacer(),
 
-                    // Action buttons
-                    Column(
-                      children: [
-                        PixelButton(
-                          label: 'Play',
-                          onPressed: _openLevelSelect,
-                          width: size.width * 0.75,
-                          height: 68,
-                          fontSize: 26,
-                          icon: Icons.play_arrow_rounded,
-                        ),
-                        const SizedBox(height: 14),
-                        PixelButton(
-                          label: 'Shop',
-                          onPressed: _openShop,
-                          width: size.width * 0.62,
-                          height: 56,
-                          fontSize: 22,
-                          color: PixelButtonColor.secondary,
-                          icon: Icons.storefront_rounded,
-                        ),
-                        const SizedBox(height: 20),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _LinkButton(label: 'Privacy Policy', onTap: _openPrivacy),
-                            _dot(),
-                            _LinkButton(label: 'Support', onTap: _openSupport),
-                          ],
-                        ),
-                      ],
+                  // ─ Floating building ─
+                  AnimatedBuilder(
+                    animation: _floatCtrl,
+                    builder: (_, child) => Transform.translate(
+                      offset: Offset(0, -8 + 16 * _floatCtrl.value),
+                      child: child,
                     ),
-                    const SizedBox(height: 20),
-                  ],
-                ),
+                    child: Image.asset(
+                      TdbAssets.base,
+                      width: size.width * 0.58,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+
+                  // ─ Bottom action panel ─
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          AppColors.concrete.withValues(alpha: 0.95),
+                          AppColors.background,
+                        ],
+                        stops: const [0.0, 0.25, 1.0],
+                      ),
+                    ),
+                    child: SafeArea(
+                      top: false,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Primary CTA
+                          PixelButton(
+                            label: 'Rush!',
+                            onPressed: _openLevelSelect,
+                            width: double.infinity,
+                            height: 66,
+                            fontSize: 28,
+                            icon: Icons.construction_rounded,
+                          ),
+                          const SizedBox(height: 10),
+
+                          // Shop button
+                          PixelButton(
+                            label: 'Shop',
+                            onPressed: _openShop,
+                            width: double.infinity,
+                            height: 52,
+                            fontSize: 20,
+                            color: PixelButtonColor.secondary,
+                            icon: Icons.storefront_rounded,
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Links
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _LinkBtn(label: 'Privacy Policy', onTap: _openPrivacy),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 10),
+                                child: Text('·',
+                                    style: TextStyle(color: Colors.white38)),
+                              ),
+                              _LinkBtn(label: 'Support', onTap: _openSupport),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -246,58 +286,54 @@ class _MainMenuScreenState extends State<MainMenuScreen>
       ),
     );
   }
-
-  Widget _dot() => const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 8),
-        child: Text('·', style: TextStyle(color: Colors.white38, fontSize: 16)),
-      );
 }
 
-// ─── Reusable sub-widgets ────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-class _StatPill extends StatelessWidget {
-  const _StatPill({
+class _StatChip extends StatelessWidget {
+  const _StatChip({
     required this.icon,
+    required this.label,
     required this.value,
-    required this.glow,
+    required this.color,
   });
   final IconData icon;
+  final String label;
   final String value;
-  final Color glow;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.panelSolid.withValues(alpha: 0.85),
+        color: Colors.black.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: glow.withValues(alpha: 0.35),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: glow.withValues(alpha: 0.15),
-            blurRadius: 12,
-            spreadRadius: 1,
-          ),
-        ],
+        border: Border.all(color: color.withValues(alpha: 0.35), width: 1.5),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: glow, size: 20),
-          const SizedBox(width: 7),
-          Text(value, style: AppTextStyles.button(size: 17)),
+          Icon(icon, color: color, size: 18),
+          const SizedBox(width: 6),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(label,
+                  style: AppTextStyles.body(size: 10, color: AppColors.textMuted)
+                      .copyWith(letterSpacing: 0.8)),
+              Text(value, style: AppTextStyles.button(size: 15, color: AppColors.text)),
+            ],
+          ),
         ],
       ),
     );
   }
 }
 
-class _IconBtn extends StatelessWidget {
-  const _IconBtn({required this.icon, required this.onTap});
+class _CircleAction extends StatelessWidget {
+  const _CircleAction({required this.icon, required this.onTap});
   final IconData icon;
   final VoidCallback onTap;
 
@@ -306,27 +342,21 @@ class _IconBtn extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 44,
-        height: 44,
+        width: 48,
+        height: 48,
         decoration: BoxDecoration(
-          color: AppColors.panelSolid.withValues(alpha: 0.85),
+          color: Colors.black.withValues(alpha: 0.55),
           shape: BoxShape.circle,
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.12),
-            width: 1.5,
-          ),
-          boxShadow: const [
-            BoxShadow(color: Colors.black38, blurRadius: 8, offset: Offset(0, 3)),
-          ],
+          border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1.5),
         ),
-        child: Icon(icon, color: AppColors.text, size: 22),
+        child: Icon(icon, color: AppColors.text, size: 24),
       ),
     );
   }
 }
 
-class _LinkButton extends StatelessWidget {
-  const _LinkButton({required this.label, required this.onTap});
+class _LinkBtn extends StatelessWidget {
+  const _LinkBtn({required this.label, required this.onTap});
   final String label;
   final VoidCallback onTap;
 
@@ -335,15 +365,11 @@ class _LinkButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-        child: Text(
-          label,
-          style: AppTextStyles.body(size: 13, color: AppColors.textMuted).copyWith(
-            decoration: TextDecoration.underline,
-            decorationColor: AppColors.textMuted.withValues(alpha: 0.5),
-          ),
-        ),
+      child: Text(
+        label,
+        style: AppTextStyles.body(size: 12, color: AppColors.textMuted)
+            .copyWith(decoration: TextDecoration.underline,
+                decorationColor: AppColors.textMuted.withValues(alpha: 0.4)),
       ),
     );
   }

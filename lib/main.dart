@@ -18,23 +18,23 @@ Future<void> main() async {
 
   await AudioService.init(progress);
 
-  runApp(const StackoTowerApp());
+  runApp(const TowerDashBricksApp());
 }
 
-class StackoTowerApp extends StatelessWidget {
-  const StackoTowerApp({super.key});
+class TowerDashBricksApp extends StatelessWidget {
+  const TowerDashBricksApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'StackoTower',
+      title: 'TowerDash Bricks',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        scaffoldBackgroundColor: AppColors.sky,
+        scaffoldBackgroundColor: AppColors.background,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.accent,
-          brightness: Brightness.light,
+          seedColor: AppColors.craneYellow,
+          brightness: Brightness.dark,
         ),
       ),
       home: const LoadingScreen(),

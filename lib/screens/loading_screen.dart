@@ -7,7 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:video_player/video_player.dart';
 
 import '../app/app_orientation.dart';
-import '../app/stacko_assets.dart';
+import '../app/tdb_assets.dart';
 import 'main_menu_screen.dart';
 
 /// Splash screen that plays a looping promo video and shows a 4-state
@@ -80,9 +80,9 @@ class _LoadingScreenState extends State<LoadingScreen>
   Future<void> _initVideos() async {
     try {
       final portrait =
-          VideoPlayerController.asset(StackoAssets.splashPortrait);
+          VideoPlayerController.asset(TdbAssets.splashPortrait);
       final landscape =
-          VideoPlayerController.asset(StackoAssets.splashLandscape);
+          VideoPlayerController.asset(TdbAssets.splashLandscape);
 
       await Future.wait([portrait.initialize(), landscape.initialize()]);
 
@@ -133,16 +133,16 @@ class _LoadingScreenState extends State<LoadingScreen>
   Future<void> _preloadGameAssets() async {
     Flame.images.prefix = '';
     final paths = <String>[
-      StackoAssets.sky,
-      StackoAssets.ground,
-      StackoAssets.cloud,
-      StackoAssets.hook,
-      StackoAssets.startBg,
-      StackoAssets.startBuilding,
-      StackoAssets.icon,
-      StackoAssets.gameName,
-      ...StackoAssets.allBlocks,
-      for (var i = 1; i <= 4; i++) StackoAssets.loadingBar(i),
+      TdbAssets.sky,
+      TdbAssets.ground,
+      TdbAssets.cloud,
+      TdbAssets.crane,
+      TdbAssets.cityBg,
+      TdbAssets.base,
+      TdbAssets.icon,
+      TdbAssets.gameName,
+      ...TdbAssets.allBricks,
+      for (var i = 1; i <= 4; i++) TdbAssets.loadingBar(i),
     ];
     for (final p in paths) {
       try {
@@ -152,11 +152,9 @@ class _LoadingScreenState extends State<LoadingScreen>
       }
     }
     try {
-      GoogleFonts.bangers();
-      GoogleFonts.fredoka();
+      GoogleFonts.robotoSlab();
       await GoogleFonts.pendingFonts(<TextStyle>[
-        GoogleFonts.bangers(),
-        GoogleFonts.fredoka(),
+        GoogleFonts.robotoSlab(),
       ]);
     } catch (e) {
       debugPrint('LoadingScreen: Google Fonts preload failed: $e');
@@ -273,7 +271,7 @@ class _LoadingBar extends StatelessWidget {
     final size = MediaQuery.of(context).size;
     final width = isPortrait ? size.width * 0.7 : size.height * 0.4;
     return Image.asset(
-      StackoAssets.loadingBar(state),
+      TdbAssets.loadingBar(state),
       width: width,
       fit: BoxFit.contain,
       gaplessPlayback: true,

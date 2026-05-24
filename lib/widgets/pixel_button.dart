@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../app/app_theme.dart';
 
-enum PixelButtonColor { primary, secondary }
+enum PixelButtonColor { primary, secondary, danger }
 
-/// Modern game button with gradient, glow border, and press animation.
+/// Industrial-style game button with brick-red/yellow gradient, glow, and press animation.
 class PixelButton extends StatefulWidget {
   const PixelButton({
     super.key,
@@ -39,9 +39,9 @@ class _PixelButtonState extends State<PixelButton>
     super.initState();
     _ctrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 100),
+      duration: const Duration(milliseconds: 90),
     );
-    _scale = Tween(begin: 1.0, end: 0.94).animate(
+    _scale = Tween(begin: 1.0, end: 0.95).animate(
       CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
     );
   }
@@ -61,31 +61,50 @@ class _PixelButtonState extends State<PixelButton>
 
   @override
   Widget build(BuildContext context) {
-    final isPrimary = widget.color == PixelButtonColor.primary;
     final disabled = widget.onPressed == null;
 
-    final topGrad = isPrimary ? const Color(0xFFFFD93D) : AppColors.btnSecTop;
-    final botGrad = isPrimary ? const Color(0xFFFF8C00) : AppColors.btnSecBottom;
-    final topPress = isPrimary ? const Color(0xFFE8A800) : const Color(0xFF3D2070);
-    final botPress = isPrimary ? const Color(0xFFB35800) : const Color(0xFF1A0D40);
-    final borderCol = isPrimary
-        ? const Color(0xFFFF6B00).withValues(alpha: 0.7)
-        : AppColors.btnSecBorder.withValues(alpha: 0.8);
-    final glowCol = isPrimary
-        ? const Color(0xFFFFD93D).withValues(alpha: 0.35)
-        : const Color(0xFF7B4FD4).withValues(alpha: 0.35);
+    Color topGrad, botGrad, topPress, botPress, borderCol, glowCol;
+    switch (widget.color) {
+      case PixelButtonColor.primary:
+        topGrad = AppColors.craneYellow;
+        botGrad = AppColors.accent;
+        topPress = const Color(0xFFCC8A00);
+        botPress = AppColors.accentDeep;
+        borderCol = AppColors.rust.withValues(alpha: 0.8);
+        glowCol = AppColors.craneYellow.withValues(alpha: 0.3);
+        break;
+      case PixelButtonColor.secondary:
+        topGrad = AppColors.btnSecTop;
+        botGrad = AppColors.btnSecBottom;
+        topPress = const Color(0xFF1E3448);
+        botPress = const Color(0xFF0A1520);
+        borderCol = AppColors.btnSecBorder.withValues(alpha: 0.8);
+        glowCol = AppColors.btnSecBorder.withValues(alpha: 0.2);
+        break;
+      case PixelButtonColor.danger:
+        topGrad = const Color(0xFFE84545);
+        botGrad = const Color(0xFF9C2020);
+        topPress = const Color(0xFFB03030);
+        botPress = const Color(0xFF6E1515);
+        borderCol = const Color(0xFFE84545).withValues(alpha: 0.7);
+        glowCol = const Color(0xFFE84545).withValues(alpha: 0.25);
+        break;
+    }
 
-    final radius = BorderRadius.circular(widget.height * 0.38);
+    final radius = BorderRadius.circular(widget.height * 0.32);
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTapDown: _down,
-      onTapUp: (_) { _up(); widget.onPressed?.call(); },
+      onTapUp: (_) {
+        _up();
+        widget.onPressed?.call();
+      },
       onTapCancel: _up,
       child: ScaleTransition(
         scale: _scale,
         child: Opacity(
-          opacity: disabled ? 0.45 : 1.0,
+          opacity: disabled ? 0.4 : 1.0,
           child: AnimatedBuilder(
             animation: _ctrl,
             builder: (context, child) {
@@ -105,53 +124,53 @@ class _PixelButtonState extends State<PixelButton>
                   ),
                   border: Border.all(color: borderCol, width: 1.5),
                   boxShadow: [
-                    // Outer glow
                     BoxShadow(
                       color: glowCol,
-                      blurRadius: 14 * (1 - t * 0.7),
+                      blurRadius: 12 * (1 - t * 0.8),
                       spreadRadius: 1,
                     ),
-                    // Drop shadow
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.45),
+                      color: Colors.black.withValues(alpha: 0.5),
                       blurRadius: 8,
-                      offset: Offset(0, 3 * (1 - t * 0.6)),
+                      offset: Offset(0, 4 * (1 - t * 0.7)),
                     ),
                   ],
                 ),
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    // Top shine
+                    // Rivet / shine accent on top
                     Positioned(
                       top: 3,
-                      left: 10,
-                      right: 10,
-                      height: widget.height * 0.38,
+                      left: 8,
+                      right: 8,
+                      height: widget.height * 0.32,
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.vertical(
-                            top: Radius.circular(widget.height * 0.34),
-                            bottom: Radius.circular(4),
+                            top: Radius.circular(widget.height * 0.30),
+                            bottom: Radius.circular(2),
                           ),
                           gradient: LinearGradient(
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                             colors: [
-                              Colors.white.withValues(alpha: 0.25 * (1 - t * 0.8)),
+                              Colors.white.withValues(
+                                  alpha: 0.18 * (1 - t * 0.9)),
                               Colors.white.withValues(alpha: 0),
                             ],
                           ),
                         ),
                       ),
                     ),
-                    // Label
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         if (widget.icon != null) ...[
-                          Icon(widget.icon, color: Colors.white, size: widget.fontSize * 1.1),
+                          Icon(widget.icon,
+                              color: Colors.white,
+                              size: widget.fontSize * 1.1),
                           const SizedBox(width: 8),
                         ],
                         Text(
@@ -163,7 +182,7 @@ class _PixelButtonState extends State<PixelButton>
                           ).copyWith(
                             shadows: [
                               Shadow(
-                                color: Colors.black.withValues(alpha: 0.6),
+                                color: Colors.black.withValues(alpha: 0.65),
                                 blurRadius: 4,
                                 offset: const Offset(0, 2),
                               ),

@@ -1,7 +1,7 @@
-name: stacko_tower
-description: "StackoTower - stack falling blocks and build the tallest tower!"
+name: tower_dash_bricks
+description: "TowerDash Bricks – Rush to stack 'em all!"
 publish_to: 'none'
-version: 1.0.1+9
+version: 1.0.0+1
 
 environment:
   sdk: ^3.11.4
@@ -29,8 +29,8 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/stacko_icon.webp
-    - assets/stacko_name.webp
+    - assets/tdb_icon.webp
+    - assets/tdb_name.webp
     - assets/gameplay/
     - assets/splash/
     - assets/additional_assets/notifications/
@@ -40,8 +40,8 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/stacko_icon.png"
+  image_path: "assets/tdb_icon.webp"
   remove_alpha_ios: true
-  background_color_ios: "#1A1A2E"
-  adaptive_icon_background: "#1A1A2E"
-  adaptive_icon_foreground: "assets/stacko_icon.png"
+  background_color_ios: "#0D1B2A"
+  adaptive_icon_background: "#0D1B2A"
+  adaptive_icon_foreground: "assets/tdb_icon.webp"

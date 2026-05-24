@@ -26,12 +26,13 @@ class _SettingsScreenState extends State<SettingsScreen>
 
     _slideCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 450),
+      duration: const Duration(milliseconds: 400),
     );
     _slideAnim = Tween<Offset>(
-      begin: const Offset(0, 0.06),
+      begin: const Offset(0, 0.05),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutCubic));
+    ).animate(
+        CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutCubic));
     _slideCtrl.forward();
   }
 
@@ -54,7 +55,7 @@ class _SettingsScreenState extends State<SettingsScreen>
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF0D0D1F), Color(0xFF1A1035), Color(0xFF0D1020)],
+            colors: [Color(0xFF0A1520), Color(0xFF1A2D42), Color(0xFF0D1B2A)],
             stops: [0.0, 0.55, 1.0],
           ),
         ),
@@ -77,19 +78,20 @@ class _SettingsScreenState extends State<SettingsScreen>
                         const SizedBox(height: 10),
                         _ToggleTile(
                           icon: Icons.music_note_rounded,
-                          iconColor: const Color(0xFF7B4FD4),
+                          iconColor: AppColors.craneYellow,
                           title: 'Music',
                           subtitle: 'Background music in menu & gameplay',
                           value: progress.musicEnabled,
                           onChanged: (v) async {
-                            await AudioService.instance.playSfx(Sfx.buttonClick);
+                            await AudioService.instance
+                                .playSfx(Sfx.buttonClick);
                             await progress.setMusicEnabled(v);
                           },
                         ),
                         const SizedBox(height: 6),
                         _SliderTile(
                           icon: Icons.volume_up_rounded,
-                          iconColor: const Color(0xFF7B4FD4),
+                          iconColor: AppColors.craneYellow,
                           title: 'Music Volume',
                           value: progress.musicVolume,
                           enabled: progress.musicEnabled,
@@ -100,10 +102,11 @@ class _SettingsScreenState extends State<SettingsScreen>
                           icon: Icons.graphic_eq_rounded,
                           iconColor: AppColors.accent,
                           title: 'Sound Effects',
-                          subtitle: 'Block taps, drops and UI clicks',
+                          subtitle: 'Brick drops, impact and UI sounds',
                           value: progress.soundEnabled,
                           onChanged: (v) async {
-                            await AudioService.instance.playSfx(Sfx.buttonClick);
+                            await AudioService.instance
+                                .playSfx(Sfx.buttonClick);
                             await progress.setSoundEnabled(v);
                             if (v) AudioService.instance.playSfx(Sfx.buttonClick);
                           },
@@ -122,7 +125,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                         const SizedBox(height: 10),
                         _ToggleTile(
                           icon: Icons.vibration_rounded,
-                          iconColor: const Color(0xFF2ECC71),
+                          iconColor: AppColors.success,
                           title: 'Vibration',
                           subtitle: 'Haptic feedback on key actions',
                           value: progress.vibrationEnabled,
@@ -158,8 +161,6 @@ class _SettingsScreenState extends State<SettingsScreen>
   }
 }
 
-// ─── Sub-widgets ──────────────────────────────────────────────────────────────
-
 class _Header extends StatelessWidget {
   const _Header({required this.onBack});
   final VoidCallback onBack;
@@ -172,7 +173,17 @@ class _Header extends StatelessWidget {
         children: [
           _CircleBack(onTap: onBack),
           const SizedBox(width: 14),
-          Text('Settings', style: AppTextStyles.title(size: 30)),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'SETTINGS',
+                style: AppTextStyles.body(size: 10, color: AppColors.craneYellow)
+                    .copyWith(letterSpacing: 3.0),
+              ),
+              Text('Preferences', style: AppTextStyles.title(size: 26)),
+            ],
+          ),
         ],
       ),
     );
@@ -191,15 +202,15 @@ class _CircleBack extends StatelessWidget {
         width: 44,
         height: 44,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.07),
+          color: Colors.white.withValues(alpha: 0.06),
           shape: BoxShape.circle,
           border: Border.all(
-            color: Colors.white.withValues(alpha: 0.15),
+            color: Colors.white.withValues(alpha: 0.12),
             width: 1.5,
           ),
         ),
-        child: const Icon(Icons.arrow_back_rounded,
-            color: AppColors.text, size: 22),
+        child:
+            const Icon(Icons.arrow_back_rounded, color: AppColors.text, size: 22),
       ),
     );
   }
@@ -217,20 +228,15 @@ class _SectionLabel extends StatelessWidget {
           width: 3,
           height: 18,
           decoration: BoxDecoration(
-            color: AppColors.accent,
+            color: AppColors.craneYellow,
             borderRadius: BorderRadius.circular(2),
           ),
         ),
         const SizedBox(width: 8),
         Text(
           text.toUpperCase(),
-          style: AppTextStyles.body(
-            size: 12,
-            color: AppColors.accent,
-          ).copyWith(
-            letterSpacing: 2.0,
-            fontWeight: FontWeight.w800,
-          ),
+          style: AppTextStyles.body(size: 12, color: AppColors.craneYellow)
+              .copyWith(letterSpacing: 2.0, fontWeight: FontWeight.w700),
         ),
       ],
     );
@@ -259,8 +265,8 @@ class _ToggleTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: value
               ? iconColor.withValues(alpha: 0.3)
@@ -274,8 +280,8 @@ class _ToggleTile extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
+              color: iconColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: iconColor, size: 22),
           ),
@@ -287,8 +293,8 @@ class _ToggleTile extends StatelessWidget {
                 Text(title, style: AppTextStyles.button(size: 16)),
                 const SizedBox(height: 2),
                 Text(subtitle,
-                    style: AppTextStyles.body(
-                        size: 12, color: AppColors.textMuted)),
+                    style:
+                        AppTextStyles.body(size: 12, color: AppColors.textMuted)),
               ],
             ),
           ),

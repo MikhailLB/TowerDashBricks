@@ -6,15 +6,15 @@ import 'package:flutter/material.dart';
 
 import '../app/app_orientation.dart';
 import '../app/app_theme.dart';
+import '../game/brick_game.dart';
+import '../game/brick_status.dart';
 import '../game/level_config.dart';
-import '../game/stacko_game.dart';
-import '../game/stacko_status.dart';
 import '../main.dart';
 import '../services/audio_service.dart';
 import '../widgets/pixel_button.dart';
 
-/// Hosts the [StackoGame] inside a [GameWidget] and adds Flutter-side overlays
-/// for the HUD, pause menu, game-over and level-complete screens.
+/// Hosts the [BrickGame] inside a [GameWidget] and adds Flutter-side overlays
+/// for the HUD (score, timer, combo), pause menu, game-over and level-complete.
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key, required this.levelConfig});
 
@@ -25,13 +25,12 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen> {
-  StackoGame? _game;
+  BrickGame? _game;
   late final math.Random _rand = math.Random();
   bool _scoreSubmitted = false;
   int _coinsCreditedFor = 0;
   int _rotationIndex = 0;
-
-  bool _usingDoubleCoins = false;
+  bool _usingGoldRush = false;
 
   @override
   void initState() {
@@ -54,24 +53,24 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _spawnGame({
-    bool slowHook = false,
-    bool ghostBlock = false,
+    bool craneBrake = false,
+    bool hardHat = false,
     bool speedFreeze = false,
-    bool wideBase = false,
-    bool doubleCoins = false,
+    bool steelFoundation = false,
+    bool goldRush = false,
   }) {
     _scoreSubmitted = false;
     _coinsCreditedFor = 0;
-    _usingDoubleCoins = doubleCoins;
+    _usingGoldRush = goldRush;
     final owned = progress.ownedSkins;
     _rotationIndex = owned.isEmpty ? 0 : _rand.nextInt(owned.length);
-    _game = StackoGame(
+    _game = BrickGame(
       skinPicker: _pickSkin,
       levelConfig: widget.levelConfig,
-      slowHookEnabled: slowHook,
-      ghostBlockEnabled: ghostBlock,
+      craneBrakeEnabled: craneBrake,
+      hardHatEnabled: hardHat,
       speedFreezeEnabled: speedFreeze,
-      wideBaseEnabled: wideBase,
+      steelFoundationEnabled: steelFoundation,
     );
   }
 
@@ -95,21 +94,21 @@ class _GameScreenState extends State<GameScreen> {
     _game?.setPaused(false);
   }
 
-  Future<void> _onUseSlowHook() async {
+  Future<void> _onUseCraneBrake() async {
     AudioService.instance.playSfx(Sfx.buttonClick);
     final granted = await progress.consumeSlowHook();
     if (!granted) return;
     setState(() {
-      _spawnGame(slowHook: true);
+      _spawnGame(craneBrake: true);
     });
   }
 
-  Future<void> _onUseSecondChance() async {
+  Future<void> _onUseBlueprintRetry() async {
     AudioService.instance.playSfx(Sfx.buttonClick);
     final granted = await progress.consumeSecondChance();
     if (!granted) return;
     _scoreSubmitted = false;
-    _game?.requestSecondChance();
+    _game?.requestBlueprintRetry();
   }
 
   Future<void> _onRestart() async {
@@ -136,7 +135,7 @@ class _GameScreenState extends State<GameScreen> {
       await progress.setHighScore(score);
     }
     var delta = score - _coinsCreditedFor;
-    if (_usingDoubleCoins && delta > 0) delta *= 2;
+    if (_usingGoldRush && delta > 0) delta *= 2;
     if (delta > 0) {
       await progress.addCoins(delta);
       _coinsCreditedFor = score;
@@ -151,14 +150,10 @@ class _GameScreenState extends State<GameScreen> {
       await progress.setHighScore(score);
     }
 
-    // Base coins per block scored.
     var coins = score;
-    if (_usingDoubleCoins && coins > 0) coins *= 2;
-
-    // Level completion reward.
+    if (_usingGoldRush && coins > 0) coins *= 2;
     coins += widget.levelConfig.coinReward;
 
-    // Lucky boost bonus.
     if (progress.luckyBoosts > 0) {
       await progress.consumeLucky();
       coins += 20;
@@ -180,17 +175,17 @@ class _GameScreenState extends State<GameScreen> {
           return;
         }
         final status = game.world.status.value;
-        if (status == StackoStatus.swinging ||
-            status == StackoStatus.falling) {
+        if (status == BrickStatus.swinging || status == BrickStatus.falling) {
           game.setPaused(true);
-        } else if (status == StackoStatus.paused ||
-            status == StackoStatus.gameOver ||
-            status == StackoStatus.levelComplete) {
+        } else if (status == BrickStatus.paused ||
+            status == BrickStatus.gameOver ||
+            status == BrickStatus.timedOut ||
+            status == BrickStatus.levelComplete) {
           await _onExit();
         }
       },
       child: Scaffold(
-        backgroundColor: AppColors.sky,
+        backgroundColor: AppColors.background,
         body: game == null
             ? const _GameLoading()
             : _GameView(
@@ -201,9 +196,9 @@ class _GameScreenState extends State<GameScreen> {
                 onRestart: _onRestart,
                 onExit: _onExit,
                 onNextLevel: _onNextLevel,
-                onUseSlowHook:
-                    progress.slowHookBoosts > 0 ? _onUseSlowHook : null,
-                onUseSecondChance: _onUseSecondChance,
+                onUseCraneBrake:
+                    progress.slowHookBoosts > 0 ? _onUseCraneBrake : null,
+                onUseBlueprintRetry: _onUseBlueprintRetry,
                 submitFinalScore: _submitFinalScore,
                 onLevelComplete: _onLevelComplete,
               ),
@@ -218,17 +213,17 @@ class _GameLoading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppColors.sky,
+      color: AppColors.background,
       alignment: Alignment.center,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const CircularProgressIndicator(
-            color: AppColors.accent,
+            color: AppColors.craneYellow,
             strokeWidth: 4,
           ),
           const SizedBox(height: 18),
-          Text('Stacking up...', style: AppTextStyles.button(size: 22)),
+          Text('Loading site...', style: AppTextStyles.button(size: 20)),
         ],
       ),
     );
@@ -244,21 +239,21 @@ class _GameView extends StatelessWidget {
     required this.onRestart,
     required this.onExit,
     required this.onNextLevel,
-    required this.onUseSlowHook,
-    required this.onUseSecondChance,
+    required this.onUseCraneBrake,
+    required this.onUseBlueprintRetry,
     required this.submitFinalScore,
     required this.onLevelComplete,
   });
 
-  final StackoGame game;
+  final BrickGame game;
   final LevelConfig levelConfig;
   final VoidCallback onPause;
   final VoidCallback onResume;
   final VoidCallback onRestart;
   final VoidCallback onExit;
   final VoidCallback onNextLevel;
-  final VoidCallback? onUseSlowHook;
-  final Future<void> Function() onUseSecondChance;
+  final VoidCallback? onUseCraneBrake;
+  final Future<void> Function() onUseBlueprintRetry;
   final Future<void> Function(int score) submitFinalScore;
   final Future<void> Function(int score) onLevelComplete;
 
@@ -271,10 +266,11 @@ class _GameView extends StatelessWidget {
           child: GameWidget(
             key: ValueKey(game),
             game: game,
-            backgroundBuilder: (_) => Container(color: AppColors.sky),
+            backgroundBuilder: (_) =>
+                Container(color: AppColors.background),
             loadingBuilder: (_) => const _GameLoading(),
             errorBuilder: (_, error) => Container(
-              color: AppColors.sky,
+              color: AppColors.background,
               alignment: Alignment.center,
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -287,49 +283,81 @@ class _GameView extends StatelessWidget {
             ),
           ),
         ),
+
+        // HUD — bricks placed, timer, combo
         ValueListenableBuilder<int>(
-          valueListenable: game.world.score,
-          builder: (context, score, _) => SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: _Hud(
-                score: score,
-                targetBlocks: levelConfig.targetBlocks,
-                levelNumber: levelConfig.levelNumber,
-                onPause: onPause,
-                slowHooks: progress.slowHookBoosts,
-                onUseSlowHook: onUseSlowHook,
+          valueListenable: game.world.bricksPlaced,
+          builder: (context, placed, _) =>
+              ValueListenableBuilder<double>(
+            valueListenable: game.world.timeRemaining,
+            builder: (context, timeLeft, _) =>
+                ValueListenableBuilder<int>(
+              valueListenable: game.world.combo,
+              builder: (context, comboMult, _) => SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: _Hud(
+                    bricksPlaced: placed,
+                    targetBlocks: levelConfig.targetBlocks,
+                    levelNumber: levelConfig.levelNumber,
+                    timeLimit: levelConfig.timeLimit,
+                    timeRemaining: timeLeft,
+                    combo: comboMult,
+                    onPause: onPause,
+                    craneBrakes: progress.slowHookBoosts,
+                    onUseCraneBrake: onUseCraneBrake,
+                  ),
+                ),
               ),
             ),
           ),
         ),
-        ValueListenableBuilder<StackoStatus>(
+
+        // Status overlays
+        ValueListenableBuilder<BrickStatus>(
           valueListenable: game.world.status,
           builder: (context, status, _) {
-            if (status == StackoStatus.paused) {
+            if (status == BrickStatus.paused) {
               return _PauseOverlay(onResume: onResume, onExit: onExit);
             }
-            if (status == StackoStatus.gameOver) {
+            if (status == BrickStatus.gameOver) {
               WidgetsBinding.instance.addPostFrameCallback((_) async {
                 await submitFinalScore(game.world.score.value);
               });
               return _GameOverOverlay(
                 score: game.world.score.value,
-                highScore: math.max(
-                  progress.highScore,
-                  game.world.score.value,
-                ),
+                highScore:
+                    math.max(progress.highScore, game.world.score.value),
                 secondChances: progress.secondChanceBoosts,
+                timedOut: false,
                 onRestart: onRestart,
                 onExit: onExit,
-                onUseSecondChance:
+                onUseBlueprintRetry:
                     progress.secondChanceBoosts > 0 &&
                             game.world.score.value > 0
-                        ? () => onUseSecondChance()
+                        ? () => onUseBlueprintRetry()
                         : null,
               );
             }
-            if (status == StackoStatus.levelComplete) {
+            if (status == BrickStatus.timedOut) {
+              WidgetsBinding.instance.addPostFrameCallback((_) async {
+                await submitFinalScore(game.world.score.value);
+              });
+              return _GameOverOverlay(
+                score: game.world.score.value,
+                highScore:
+                    math.max(progress.highScore, game.world.score.value),
+                secondChances: progress.secondChanceBoosts,
+                timedOut: true,
+                onRestart: onRestart,
+                onExit: onExit,
+                onUseBlueprintRetry:
+                    progress.secondChanceBoosts > 0
+                        ? () => onUseBlueprintRetry()
+                        : null,
+              );
+            }
+            if (status == BrickStatus.levelComplete) {
               WidgetsBinding.instance.addPostFrameCallback((_) async {
                 await onLevelComplete(game.world.score.value);
               });
@@ -349,87 +377,159 @@ class _GameView extends StatelessWidget {
   }
 }
 
+// ─── HUD ──────────────────────────────────────────────────────────────────────
+
 class _Hud extends StatelessWidget {
   const _Hud({
-    required this.score,
+    required this.bricksPlaced,
     required this.targetBlocks,
     required this.levelNumber,
+    required this.timeLimit,
+    required this.timeRemaining,
+    required this.combo,
     required this.onPause,
-    required this.slowHooks,
-    required this.onUseSlowHook,
+    required this.craneBrakes,
+    required this.onUseCraneBrake,
   });
 
-  final int score;
+  final int bricksPlaced;
   final int targetBlocks;
   final int levelNumber;
+  final int timeLimit;
+  final double timeRemaining;
+  final int combo;
   final VoidCallback onPause;
-  final int slowHooks;
-  final VoidCallback? onUseSlowHook;
+  final int craneBrakes;
+  final VoidCallback? onUseCraneBrake;
 
   @override
   Widget build(BuildContext context) {
+    final timerRatio = timeLimit > 0 ? (timeRemaining / timeLimit).clamp(0.0, 1.0) : 1.0;
+    final timerColor = timeRemaining <= 10
+        ? AppColors.timerDanger
+        : timeRemaining <= 20
+            ? AppColors.timerWarning
+            : AppColors.craneYellow;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _RoundButton(icon: Icons.pause_rounded, onPressed: onPause),
         const Spacer(),
+
+        // Centre info column
         Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.panel,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.black26),
-              ),
-              child: Text(
-                'Level $levelNumber',
-                style: AppTextStyles.body(size: 14, color: AppColors.accent),
-              ),
-            ),
-            const SizedBox(height: 4),
+            // Level badge
             Container(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
               decoration: BoxDecoration(
-                color: AppColors.panel,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.black26),
+                color: AppColors.panelSolid.withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                    color: AppColors.craneYellow.withValues(alpha: 0.3)),
+              ),
+              child: Text('LVL $levelNumber',
+                  style: AppTextStyles.body(
+                      size: 12, color: AppColors.craneYellow)
+                    .copyWith(letterSpacing: 1.5)),
+            ),
+            const SizedBox(height: 4),
+
+            // Score
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+              decoration: BoxDecoration(
+                color: AppColors.panelSolid.withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white12),
               ),
               child: Text(
-                '$score / $targetBlocks',
+                '$bricksPlaced / $targetBlocks',
                 style: AppTextStyles.score(size: 20),
               ),
             ),
+            const SizedBox(height: 4),
+
+            // Timer bar
+            Container(
+              width: 110,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: AppColors.panelSolid.withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                    color: timerColor.withValues(alpha: 0.5), width: 1.5),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.timer_rounded, color: timerColor, size: 12),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${timeRemaining.ceil()}s',
+                        style: AppTextStyles.button(
+                            size: 14, color: timerColor),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: timerRatio,
+                      backgroundColor: Colors.white12,
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(timerColor),
+                      minHeight: 4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Combo badge (only show if > 1x)
+            if (combo > 1) ...[
+              const SizedBox(height: 4),
+              _ComboBadge(multiplier: combo),
+            ],
           ],
         ),
+
         const Spacer(),
-        if (slowHooks > 0)
+
+        // Crane brake button
+        if (craneBrakes > 0)
           Stack(
             clipBehavior: Clip.none,
             children: [
               _RoundButton(
                 icon: Icons.speed_rounded,
-                onPressed: onUseSlowHook,
-                tint: AppColors.accent.withValues(alpha: 0.85),
+                onPressed: onUseCraneBrake,
+                tint: AppColors.craneYellow.withValues(alpha: 0.85),
               ),
               Positioned(
                 right: -2,
                 top: -2,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 1,
-                  ),
+                      horizontal: 6, vertical: 1),
                   decoration: BoxDecoration(
                     color: AppColors.danger,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: Colors.white, width: 1),
                   ),
                   child: Text(
-                    'x$slowHooks',
-                    style: AppTextStyles.body(size: 11, color: Colors.white),
+                    'x$craneBrakes',
+                    style:
+                        AppTextStyles.body(size: 11, color: Colors.white),
                   ),
                 ),
               ),
@@ -438,6 +538,35 @@ class _Hud extends StatelessWidget {
         else
           const SizedBox(width: 48, height: 48),
       ],
+    );
+  }
+}
+
+class _ComboBadge extends StatelessWidget {
+  const _ComboBadge({required this.multiplier});
+  final int multiplier;
+
+  @override
+  Widget build(BuildContext context) {
+    final color =
+        multiplier >= 3 ? AppColors.combo3x : AppColors.combo2x;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.3),
+            blurRadius: 8,
+          ),
+        ],
+      ),
+      child: Text(
+        '${multiplier}x COMBO',
+        style: AppTextStyles.button(size: 12, color: color),
+      ),
     );
   }
 }
@@ -451,7 +580,7 @@ class _RoundButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: tint ?? AppColors.panel,
+      color: tint ?? AppColors.panelSolid,
       shape: const CircleBorder(),
       elevation: 4,
       child: InkWell(
@@ -460,12 +589,14 @@ class _RoundButton extends StatelessWidget {
         child: SizedBox(
           width: 48,
           height: 48,
-          child: Icon(icon, color: AppColors.text, size: 28),
+          child: Icon(icon, color: AppColors.text, size: 26),
         ),
       ),
     );
   }
 }
+
+// ─── Overlays ────────────────────────────────────────────────────────────────
 
 class _PauseOverlay extends StatelessWidget {
   const _PauseOverlay({required this.onResume, required this.onExit});
@@ -477,6 +608,7 @@ class _PauseOverlay extends StatelessWidget {
     return _ModalScrim(
       child: _PanelCard(
         title: 'Paused',
+        icon: Icons.pause_circle_rounded,
         children: [
           PixelButton(label: 'Continue', onPressed: onResume),
           const SizedBox(height: 12),
@@ -496,35 +628,39 @@ class _GameOverOverlay extends StatelessWidget {
     required this.score,
     required this.highScore,
     required this.secondChances,
+    required this.timedOut,
     required this.onRestart,
     required this.onExit,
-    required this.onUseSecondChance,
+    required this.onUseBlueprintRetry,
   });
 
   final int score;
   final int highScore;
   final int secondChances;
+  final bool timedOut;
   final VoidCallback onRestart;
   final VoidCallback onExit;
-  final VoidCallback? onUseSecondChance;
+  final VoidCallback? onUseBlueprintRetry;
 
   @override
   Widget build(BuildContext context) {
     return _ModalScrim(
       child: _PanelCard(
-        title: 'Game Over',
+        title: timedOut ? 'Time Up!' : 'Game Over',
+        icon: timedOut ? Icons.timer_off_rounded : Icons.warning_rounded,
         children: [
-          Text('Blocks: $score', style: AppTextStyles.score(size: 26)),
+          Text('Bricks: $score', style: AppTextStyles.score(size: 26)),
           Text(
             'Best: $highScore',
-            style: AppTextStyles.body(size: 16, color: AppColors.accent),
+            style: AppTextStyles.body(size: 16, color: AppColors.craneYellow),
           ),
           const SizedBox(height: 16),
-          if (onUseSecondChance != null) ...[
+          if (onUseBlueprintRetry != null) ...[
             PixelButton(
-              label: 'Second Chance (x$secondChances)',
-              onPressed: onUseSecondChance,
-              fontSize: 18,
+              label: 'Blueprint Retry (x$secondChances)',
+              onPressed: onUseBlueprintRetry,
+              fontSize: 16,
+              color: PixelButtonColor.primary,
             ),
             const SizedBox(height: 12),
           ],
@@ -561,37 +697,41 @@ class _LevelCompleteOverlay extends StatelessWidget {
     final isLastLevel = levelConfig.levelNumber >= levels.length;
     return _ModalScrim(
       child: _PanelCard(
-        title: 'Level Complete!',
+        title: 'Rush Complete!',
+        icon: Icons.emoji_events_rounded,
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             decoration: BoxDecoration(
-              color: AppColors.accent.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.accent, width: 1.5),
+              color: AppColors.craneYellow.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                  color: AppColors.craneYellow, width: 1.5),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.monetization_on_rounded,
-                    color: AppColors.accent, size: 24),
+                const Icon(Icons.toll_rounded,
+                    color: AppColors.craneYellow, size: 24),
                 const SizedBox(width: 8),
                 Text(
                   '+${levelConfig.coinReward} coins',
                   style: AppTextStyles.score(
-                      size: 22, color: AppColors.accent),
+                      size: 22, color: AppColors.craneYellow),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            '$score blocks stacked',
-            style: AppTextStyles.body(size: 14, color: Colors.white70),
+            '$score bricks stacked',
+            style:
+                AppTextStyles.body(size: 14, color: Colors.white60),
           ),
           const SizedBox(height: 18),
           if (!isLastLevel) ...[
-            PixelButton(label: 'Next Level', onPressed: onNextLevel),
+            PixelButton(
+                label: 'Next Level', onPressed: onNextLevel),
             const SizedBox(height: 12),
           ],
           PixelButton(label: 'Play Again', onPressed: onRestart),
@@ -614,7 +754,7 @@ class _ModalScrim extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.black54,
+      color: Colors.black.withValues(alpha: 0.65),
       alignment: Alignment.center,
       child: child,
     );
@@ -622,27 +762,36 @@ class _ModalScrim extends StatelessWidget {
 }
 
 class _PanelCard extends StatelessWidget {
-  const _PanelCard({required this.title, required this.children});
+  const _PanelCard({
+    required this.title,
+    required this.icon,
+    required this.children,
+  });
   final String title;
+  final IconData icon;
   final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 28),
-      margin: const EdgeInsets.symmetric(horizontal: 32),
+      margin: const EdgeInsets.symmetric(horizontal: 28),
       decoration: BoxDecoration(
-        color: AppColors.panel,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Colors.white24, width: 2),
+        color: AppColors.panelSolid,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+            color: AppColors.craneYellow.withValues(alpha: 0.2),
+            width: 1.5),
         boxShadow: const [
-          BoxShadow(blurRadius: 30, color: Colors.black54),
+          BoxShadow(blurRadius: 32, color: Colors.black54),
         ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(title, style: AppTextStyles.title(size: 34)),
+          Icon(icon, color: AppColors.craneYellow, size: 36),
+          const SizedBox(height: 8),
+          Text(title, style: AppTextStyles.title(size: 32)),
           const SizedBox(height: 18),
           ...children,
         ],
@@ -650,4 +799,3 @@ class _PanelCard extends StatelessWidget {
     );
   }
 }
-

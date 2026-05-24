@@ -1,91 +1,86 @@
 import 'dart:math' as math;
-import 'dart:ui';
+import 'dart:ui' as ui;
 
 import 'package:flame/components.dart';
 import 'package:flame/flame.dart';
+import 'package:flutter/material.dart';
 
-import '../../app/stacko_assets.dart';
-import '../stacko_constants.dart';
+import '../../app/tdb_assets.dart';
+import '../brick_constants.dart';
 
-/// A drifting cloud sprite. Wraps horizontally so the sky always looks alive.
-class Cloud extends SpriteComponent with HasGameReference {
-  Cloud({
-    required this.speed,
-    required this.relativeY,
-    required this.scaleFactor,
-    required this.startX,
-    required this.cloudAlpha,
-  });
+/// Manages a set of slowly drifting clouds in the background.
+class CloudLayer extends Component {
+  CloudLayer() : super(priority: -3);
 
-  final double speed;
-  final double relativeY;
-  final double scaleFactor;
-  final double startX;
-  final double cloudAlpha;
-
-  static Future<Sprite> _loadSprite() async =>
-      Sprite(await Flame.images.load(StackoAssets.cloud));
+  static const _count = 4;
+  final _rng = math.Random();
+  final _clouds = <_Cloud>[];
+  late ui.Image _image;
+  bool _ready = false;
 
   @override
   Future<void> onLoad() async {
-    sprite = await _loadSprite();
-    final aspect = sprite!.srcSize.x / sprite!.srcSize.y;
-    size = Vector2(scaleFactor, scaleFactor / aspect);
-    anchor = Anchor.center;
-    position = Vector2(startX, relativeY);
-    paint = Paint()
-      ..colorFilter = ColorFilter.mode(
-        const Color(0xFFFFFFFF).withValues(alpha: cloudAlpha),
-        BlendMode.modulate,
-      );
-    priority = -50;
+    _image = await Flame.images.load(TdbAssets.cloud);
+    _ready = true;
+    for (var i = 0; i < _count; i++) {
+      _clouds.add(_randomCloud());
+    }
+  }
+
+  _Cloud _randomCloud() {
+    return _Cloud(
+      x: (_rng.nextDouble() - 0.5) * BrickConstants.worldWidth * 1.4,
+      y: -BrickConstants.worldHeight * (_rng.nextDouble() * 2 + 0.5),
+      width: 2.5 + _rng.nextDouble() * 1.5,
+      speed: 0.1 + _rng.nextDouble() * 0.15,
+      opacity: 0.25 + _rng.nextDouble() * 0.35,
+    );
   }
 
   @override
   void update(double dt) {
-    super.update(dt);
-    position.x += speed * dt;
-    final cameraCenter = game.camera.viewfinder.position;
-    final maxX = cameraCenter.x + StackoConstants.worldWidth / 2 + size.x;
-    final minX = cameraCenter.x - StackoConstants.worldWidth / 2 - size.x;
-    if (position.x > maxX) {
-      position.x = minX;
-      position.y = cameraCenter.y + relativeY;
-    } else if (position.x < minX) {
-      position.x = maxX;
-      position.y = cameraCenter.y + relativeY;
+    for (final c in _clouds) {
+      c.x += c.speed * dt;
+      if (c.x > BrickConstants.worldWidth) {
+        c.x = -BrickConstants.worldWidth;
+        c.y = -BrickConstants.worldHeight * (_rng.nextDouble() * 2 + 0.5);
+      }
+    }
+  }
+
+  @override
+  void render(Canvas canvas) {
+    if (!_ready) return;
+    for (final c in _clouds) {
+      final paint = Paint()
+        ..filterQuality = FilterQuality.low
+        ..color = Colors.white.withValues(alpha: c.opacity);
+      canvas.drawImageRect(
+        _image,
+        Rect.fromLTWH(0, 0, _image.width.toDouble(), _image.height.toDouble()),
+        Rect.fromCenter(
+          center: Offset(c.x, c.y),
+          width: c.width,
+          height: c.width * _image.height / _image.width,
+        ),
+        paint,
+      );
     }
   }
 }
 
-/// Spawns a set of clouds bound to the camera centre.
-class CloudLayer extends Component with HasGameReference {
-  CloudLayer({this.seed = 0});
+class _Cloud {
+  _Cloud({
+    required this.x,
+    required this.y,
+    required this.width,
+    required this.speed,
+    required this.opacity,
+  });
 
-  final int seed;
-  late final math.Random _rand = math.Random(seed);
-
-  @override
-  Future<void> onLoad() async {
-    for (var i = 0; i < 6; i++) {
-      add(_spawnCloud());
-    }
-  }
-
-  Cloud _spawnCloud() {
-    final width = StackoConstants.worldWidth;
-    final speed = (_rand.nextDouble() * 0.4 + 0.2) *
-        (_rand.nextBool() ? 1 : -1);
-    final relativeY = -_rand.nextDouble() * 4 - 0.5;
-    final scale = 1.3 + _rand.nextDouble() * 1.5;
-    final startX = (_rand.nextDouble() - 0.5) * width;
-    final cloudOpacity = 0.7 + _rand.nextDouble() * 0.3;
-    return Cloud(
-      speed: speed,
-      relativeY: relativeY,
-      scaleFactor: scale,
-      startX: startX,
-      cloudAlpha: cloudOpacity,
-    );
-  }
+  double x;
+  double y;
+  final double width;
+  final double speed;
+  final double opacity;
 }
