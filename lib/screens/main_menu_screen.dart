@@ -232,48 +232,45 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                         stops: const [0.0, 0.25, 1.0],
                       ),
                     ),
-                    child: SafeArea(
-                      top: false,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Primary CTA
-                          PixelButton(
-                            label: 'Rush!',
-                            onPressed: _openLevelSelect,
-                            width: double.infinity,
-                            height: 66,
-                            fontSize: 28,
-                            icon: Icons.construction_rounded,
-                          ),
-                          const SizedBox(height: 10),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Primary CTA
+                        PixelButton(
+                          label: 'Rush!',
+                          onPressed: _openLevelSelect,
+                          width: double.infinity,
+                          height: 66,
+                          fontSize: 28,
+                          icon: Icons.construction_rounded,
+                        ),
+                        const SizedBox(height: 10),
 
-                          // Shop button
-                          PixelButton(
-                            label: 'Shop',
-                            onPressed: _openShop,
-                            width: double.infinity,
-                            height: 52,
-                            fontSize: 20,
-                            color: PixelButtonColor.secondary,
-                            icon: Icons.storefront_rounded,
-                          ),
-                          const SizedBox(height: 12),
+                        // Shop button
+                        PixelButton(
+                          label: 'Shop',
+                          onPressed: _openShop,
+                          width: double.infinity,
+                          height: 52,
+                          fontSize: 20,
+                          color: PixelButtonColor.secondary,
+                          icon: Icons.storefront_rounded,
+                        ),
+                        const SizedBox(height: 8),
 
-                          // Links — padding inside _LinkBtn keeps tap zone large
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _LinkBtn(label: 'Privacy Policy', onTap: _openPrivacy),
-                              const Text('·',
-                                  style: TextStyle(color: Colors.white38)),
-                              _LinkBtn(label: 'Support', onTap: _openSupport),
-                            ],
-                          ),
-                          // Extra bottom space so links sit above home indicator
-                          SizedBox(height: MediaQuery.of(context).padding.bottom + 4),
-                        ],
-                      ),
+                        // Links — padding inside _LinkBtn keeps tap zone large
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _LinkBtn(label: 'Privacy Policy', onTap: _openPrivacy),
+                            const Text('·',
+                                style: TextStyle(color: Colors.white38)),
+                            _LinkBtn(label: 'Support', onTap: _openSupport),
+                          ],
+                        ),
+                        // Safe area bottom padding so links sit above home indicator
+                        SizedBox(height: MediaQuery.of(context).padding.bottom),
+                      ],
                     ),
                   ),
                 ],

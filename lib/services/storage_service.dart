@@ -37,7 +37,8 @@ class StorageService {
 
   Future<void> _seedDefaults() async {
     if (!_prefs.containsKey(_kOwnedSkins)) {
-      await _prefs.setStringList(_kOwnedSkins, ['1']);
+      // Skin 5 (brick-wall house) is the starting unlocked skin.
+      await _prefs.setStringList(_kOwnedSkins, ['5']);
     }
     if (!_prefs.containsKey(_kSelectedSkin)) {
       await _prefs.setInt(_kSelectedSkin, 0);

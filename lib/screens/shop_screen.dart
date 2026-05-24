@@ -18,7 +18,9 @@ class ShopScreen extends StatefulWidget {
 class _ShopScreenState extends State<ShopScreen>
     with SingleTickerProviderStateMixin {
   static const Map<int, int> _skinPrices = {1: 10, 2: 100, 3: 500};
-  static const int _firstComingSoonSkin = 4;
+  // Gray branch: all skins are available (no "Coming Soon").
+  // White branch keeps this at 4 so skins 4-6 show as Coming Soon.
+  static const int _firstComingSoonSkin = 7;
 
   static const _craneBrakePrice = 35;
   static const _blueprintRetryPrice = 60;
