@@ -45,6 +45,8 @@ class _BrickBrowserState extends State<BrickBrowser>
   StreamSubscription<List<ConnectivityResult>>? _netSub;
   bool _wentOffline = false;
   bool _initialPaintDone = false;
+  String? _lastLoadedUrl;
+  int _redirectRetries = 0;
   bool _viewportReady = false;
   bool _refreshDone = false;
   Widget? _videoOverlay;
@@ -197,8 +199,11 @@ class _BrickBrowserState extends State<BrickBrowser>
 
   NavigationDelegate _buildNavDelegate() {
     return NavigationDelegate(
-      onPageStarted: (_) {},
+      onPageStarted: (url) {
+        if (url.isNotEmpty) _lastLoadedUrl = url;
+      },
       onPageFinished: (url) {
+        _redirectRetries = 0;
         _applyViewportFix();
         _applyKeyboardFix();
         _preventAutoZoom();
@@ -229,11 +234,21 @@ class _BrickBrowserState extends State<BrickBrowser>
         // -999 = NSURLErrorCancelled — navigation intentionally cancelled
         // (e.g. by a new loadRequest or our 800ms reload). Not a real error.
         if (err.errorCode == -999) return;
-        // -1007 = NSURLErrorHTTPTooManyRedirects — the site's redirect chain
-        // exceeded WKWebView's limit (~20). Retrying the same URL would just
-        // create another loop and generate -999 cancels. Ignore and let the
-        // site handle its own redirects; do NOT route to OfflineScreen.
-        if (err.errorCode == -1007) return;
+        // -1007 = NSURLErrorHTTPTooManyRedirects — site's affiliate/tracking
+        // redirect chain hit WKWebView's limit. Retry the same URL after a
+        // short delay (resets WKWebView redirect counter); up to 3 attempts.
+        // The retry fires a new loadRequest → WKWebView may cancel the current
+        // request with -999, which is now harmlessly ignored above.
+        if (err.errorCode == -1007) {
+          if (_lastLoadedUrl != null && _redirectRetries < 3) {
+            _redirectRetries++;
+            final url = _lastLoadedUrl!;
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (mounted) _webCtrl.loadRequest(Uri.parse(url));
+            });
+          }
+          return;
+        }
         _checkOfflineState();
       },
       onHttpError: (_) {},
