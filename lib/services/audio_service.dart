@@ -1,4 +1,5 @@
 import 'package:audioplayers/audioplayers.dart';
+import '../core/tdb_log.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -59,7 +60,7 @@ class AudioService with WidgetsBindingObserver {
         ),
       );
     } catch (e) {
-      debugPrint('AudioService: setAudioContext failed: $e');
+      tdbLog('AudioService: setAudioContext failed: $e');
     }
 
     await svc._bgm.setReleaseMode(ReleaseMode.loop);
@@ -77,7 +78,7 @@ class AudioService with WidgetsBindingObserver {
         ),
       );
     } catch (e) {
-      debugPrint('AudioService: bgm setAudioContext failed: $e');
+      tdbLog('AudioService: bgm setAudioContext failed: $e');
     }
     progress.addListener(svc._onProgressChanged);
     WidgetsBinding.instance.addObserver(svc);
@@ -130,7 +131,7 @@ class AudioService with WidgetsBindingObserver {
       await _bgm.setVolume(_progress.musicVolume);
       await _bgm.play(AssetSource(_bgmPath(bgm)));
     } catch (e) {
-      debugPrint('AudioService: bgm play failed: $e');
+      tdbLog('AudioService: bgm play failed: $e');
     }
   }
 
@@ -150,7 +151,7 @@ class AudioService with WidgetsBindingObserver {
       await player.play(AssetSource(_sfxPath(sfx)));
       player.onPlayerComplete.first.then((_) => player.dispose());
     } catch (e) {
-      debugPrint('AudioService: sfx play failed: $e');
+      tdbLog('AudioService: sfx play failed: $e');
       player.dispose();
     }
   }

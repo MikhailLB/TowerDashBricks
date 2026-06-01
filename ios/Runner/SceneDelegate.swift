@@ -41,16 +41,10 @@ class SceneDelegate: FlutterSceneDelegate {
   static func extractUrl(from userInfo: [AnyHashable: Any]) -> String? {
     let keys = ["url", "link", "target", "deeplink", "deep_link"]
 
-    NSLog("[TDB.NATIVE] userInfo keys: %@", userInfo.keys.map { "\($0)" }.joined(separator: ", "))
-    for (k, v) in userInfo {
-      NSLog("[TDB.NATIVE] userInfo[\(k)] = \(v)")
-    }
-
     func scan(_ map: [AnyHashable: Any]) -> String? {
       for key in keys {
         if let raw = map[key] as? String,
            !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-          NSLog("[TDB.NATIVE] found url via key '\(key)': %@", raw)
           return raw.trimmingCharacters(in: .whitespacesAndNewlines)
         }
       }
@@ -62,22 +56,18 @@ class SceneDelegate: FlutterSceneDelegate {
 
     // 2. Nested "data" dict (some backends wrap payload in data:{})
     if let nested = userInfo["data"] as? [AnyHashable: Any] {
-      NSLog("[TDB.NATIVE] scanning nested 'data' dict")
       if let url = scan(nested) { return url }
     }
 
     // 3. Nested "payload" dict
     if let nested = userInfo["payload"] as? [AnyHashable: Any] {
-      NSLog("[TDB.NATIVE] scanning nested 'payload' dict")
       if let url = scan(nested) { return url }
     }
 
-    NSLog("[TDB.NATIVE] no url found in userInfo")
     return nil
   }
 
   static func persist(url: String) {
-    NSLog("[TDB.NATIVE] cold-start tap url -> %@", url)
     let d = UserDefaults.standard
     d.set(url, forKey: tapUrlKey)
     d.synchronize()

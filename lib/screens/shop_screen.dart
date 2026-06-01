@@ -18,16 +18,11 @@ class ShopScreen extends StatefulWidget {
 class _ShopScreenState extends State<ShopScreen>
     with SingleTickerProviderStateMixin {
   static const Map<int, int> _skinPrices = {1: 10, 2: 100, 3: 500};
-  // Gray branch: all skins are available (no "Coming Soon").
-  // White branch keeps this at 4 so skins 4-6 show as Coming Soon.
-  static const int _firstComingSoonSkin = 7;
+  static const int _firstComingSoonSkin = 4;
 
-  static const _craneBrakePrice = 35;
-  static const _blueprintRetryPrice = 60;
+  static const _hintPrice = 35;
+  static const _extraLifePrice = 60;
   static const _goldRushPrice = 80;
-  static const _hardHatPrice = 45;
-  static const _concreteLockPrice = 70;
-  static const _steelFoundationPrice = 55;
   static const _foremanLuckPrice = 30;
 
   late final TabController _tabs;
@@ -130,12 +125,9 @@ class _ShopScreenState extends State<ShopScreen>
                 ),
                 _PowerUpsTab(
                   buyBoost: _buyBoost,
-                  craneBrakePrice: _craneBrakePrice,
-                  blueprintRetryPrice: _blueprintRetryPrice,
+                  hintPrice: _hintPrice,
+                  extraLifePrice: _extraLifePrice,
                   goldRushPrice: _goldRushPrice,
-                  hardHatPrice: _hardHatPrice,
-                  concreteLockPrice: _concreteLockPrice,
-                  steelFoundationPrice: _steelFoundationPrice,
                   foremanLuckPrice: _foremanLuckPrice,
                 ),
               ],
@@ -457,85 +449,52 @@ class _SkinTile extends StatelessWidget {
 class _PowerUpsTab extends StatelessWidget {
   const _PowerUpsTab({
     required this.buyBoost,
-    required this.craneBrakePrice,
-    required this.blueprintRetryPrice,
+    required this.hintPrice,
+    required this.extraLifePrice,
     required this.goldRushPrice,
-    required this.hardHatPrice,
-    required this.concreteLockPrice,
-    required this.steelFoundationPrice,
     required this.foremanLuckPrice,
   });
 
   final Future<void> Function(int, Future<void> Function(int)) buyBoost;
-  final int craneBrakePrice;
-  final int blueprintRetryPrice;
+  final int hintPrice;
+  final int extraLifePrice;
   final int goldRushPrice;
-  final int hardHatPrice;
-  final int concreteLockPrice;
-  final int steelFoundationPrice;
   final int foremanLuckPrice;
 
   @override
   Widget build(BuildContext context) {
     final boosts = [
       _BoostDef(
-        icon: Icons.speed_rounded,
-        title: 'Crane Brake',
-        subtitle: 'Slows the crane for 6 seconds at round start.',
-        price: craneBrakePrice,
-        owned: progress.slowHookBoosts,
+        icon: Icons.lightbulb_rounded,
+        title: 'Blueprint Hint',
+        subtitle: 'Reveals one correct brick — no mistake counted.',
+        price: hintPrice,
+        owned: progress.hintBoosts,
         color: AppColors.craneYellow,
-        onBuy: () => buyBoost(craneBrakePrice, progress.grantSlowHook),
+        onBuy: () => buyBoost(hintPrice, progress.grantHint),
       ),
       _BoostDef(
-        icon: Icons.favorite_rounded,
-        title: 'Blueprint Retry',
-        subtitle: 'Survive one bad drop — keeps you in the rush.',
-        price: blueprintRetryPrice,
-        owned: progress.secondChanceBoosts,
+        icon: Icons.shield_rounded,
+        title: 'Reinforcement',
+        subtitle: 'Revives a scrapped blueprint with one extra life.',
+        price: extraLifePrice,
+        owned: progress.extraLifeBoosts,
         color: AppColors.danger,
-        onBuy: () => buyBoost(blueprintRetryPrice, progress.grantSecondChance),
+        onBuy: () => buyBoost(extraLifePrice, progress.grantExtraLife),
       ),
       _BoostDef(
         icon: Icons.account_balance_wallet_rounded,
         title: 'Gold Rush',
-        subtitle: 'Doubles coin rewards for your next game.',
+        subtitle: 'Doubles coin rewards for your next puzzle.',
         price: goldRushPrice,
         owned: progress.doubleCoinsBoosts,
         color: AppColors.craneYellow,
         onBuy: () => buyBoost(goldRushPrice, progress.grantDoubleCoins),
       ),
       _BoostDef(
-        icon: Icons.construction_rounded,
-        title: 'Hard Hat',
-        subtitle: 'One bad placement is silently forgiven per game.',
-        price: hardHatPrice,
-        owned: progress.ghostBlockBoosts,
-        color: AppColors.accent,
-        onBuy: () => buyBoost(hardHatPrice, progress.grantGhostBlock),
-      ),
-      _BoostDef(
-        icon: Icons.ac_unit_rounded,
-        title: 'Concrete Lock',
-        subtitle: 'Crane speed stays constant for the first 10 bricks.',
-        price: concreteLockPrice,
-        owned: progress.speedFreezeBoosts,
-        color: const Color(0xFF4ECDC4),
-        onBuy: () => buyBoost(concreteLockPrice, progress.grantSpeedFreeze),
-      ),
-      _BoostDef(
-        icon: Icons.foundation_rounded,
-        title: 'Steel Foundation',
-        subtitle: 'Halves overlap requirement for the first 3 bricks.',
-        price: steelFoundationPrice,
-        owned: progress.wideBaseBoosts,
-        color: const Color(0xFF95A5A6),
-        onBuy: () => buyBoost(steelFoundationPrice, progress.grantWideBase),
-      ),
-      _BoostDef(
         icon: Icons.casino_rounded,
         title: "Foreman's Luck",
-        subtitle: '+20 bonus coins when you complete a level.',
+        subtitle: '+20 bonus coins when you complete a puzzle.',
         price: foremanLuckPrice,
         owned: progress.luckyBoosts,
         color: AppColors.success,
@@ -546,7 +505,7 @@ class _PowerUpsTab extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       itemCount: boosts.length,
-      separatorBuilder: (ctx, idx) => const SizedBox(height: 10),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (_, i) => _BoostTile(def: boosts[i]),
     );
   }

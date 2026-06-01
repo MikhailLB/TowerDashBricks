@@ -1,12 +1,12 @@
 import 'dart:async';
+import '../core/tdb_log.dart';
 
-import 'package:flame/flame.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:video_player/video_player.dart';
 
 import '../app/app_orientation.dart';
-import '../app/game_asset_loader.dart';
 import '../app/tdb_assets.dart';
 import 'main_menu_screen.dart';
 
@@ -53,7 +53,6 @@ class _LoadingScreenState extends State<LoadingScreen>
 
   Future<void> _initialise() async {
     final start = DateTime.now();
-    Flame.images.prefix = '';
 
     await _initVideos();
     if (!mounted) return;
@@ -64,7 +63,7 @@ class _LoadingScreenState extends State<LoadingScreen>
     setState(() => _showBar = true);
 
     final barFuture = _progressController.forward();
-    final assetsFuture = preloadGameAssets();
+    final assetsFuture = _preloadGameAssets();
 
     await Future.wait([barFuture, assetsFuture]);
 
@@ -94,12 +93,12 @@ class _LoadingScreenState extends State<LoadingScreen>
       try {
         await portrait.play();
       } catch (e) {
-        debugPrint('LoadingScreen: portrait play() failed: $e');
+        tdbLog('LoadingScreen: portrait play() failed: $e');
       }
       try {
         await landscape.play();
       } catch (e) {
-        debugPrint('LoadingScreen: landscape play() failed: $e');
+        tdbLog('LoadingScreen: landscape play() failed: $e');
       }
 
       _portraitListener = () => _restartIfFinished(portrait);
@@ -110,7 +109,7 @@ class _LoadingScreenState extends State<LoadingScreen>
       _portraitVideo = portrait;
       _landscapeVideo = landscape;
     } catch (e, st) {
-      debugPrint('LoadingScreen: video init failed: $e\n$st');
+      tdbLog('LoadingScreen: video init failed: $e\n$st');
     }
   }
 
@@ -128,6 +127,37 @@ class _LoadingScreenState extends State<LoadingScreen>
     if (!c.value.isInitialized) return;
     if (c.value.isPlaying) return;
     c.play();
+  }
+
+  Future<void> _preloadGameAssets() async {
+    final paths = <String>[
+      TdbAssets.sky,
+      TdbAssets.ground,
+      TdbAssets.cloud,
+      TdbAssets.crane,
+      TdbAssets.cityBg,
+      TdbAssets.base,
+      TdbAssets.icon,
+      TdbAssets.gameName,
+      ...TdbAssets.allBricks,
+      for (var i = 1; i <= 4; i++) TdbAssets.loadingBar(i),
+    ];
+    for (final p in paths) {
+      if (!mounted) break;
+      try {
+        await precacheImage(AssetImage(p), context);
+      } catch (e) {
+        tdbLog('LoadingScreen: failed to preload $p: $e');
+      }
+    }
+    try {
+      GoogleFonts.robotoSlab();
+      await GoogleFonts.pendingFonts(<TextStyle>[
+        GoogleFonts.robotoSlab(),
+      ]);
+    } catch (e) {
+      tdbLog('LoadingScreen: Google Fonts preload failed: $e');
+    }
   }
 
   void _goToMenu() {

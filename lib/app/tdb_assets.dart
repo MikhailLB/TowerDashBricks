@@ -1,6 +1,6 @@
 class TdbAssets {
   static const _gameplay = 'assets/gameplay';
-  static const _splash = 'assets/splash';
+  static const _boot = 'assets/boot';
 
   static const sky = '$_gameplay/tdb_sky.webp';
   static const ground = '$_gameplay/tdb_ground.webp';
@@ -24,8 +24,8 @@ class TdbAssets {
     '$_gameplay/tdb_brick_06.webp',
   ];
 
-  static const splashPortrait = '$_splash/9x16_loading_screen.mp4';
-  static const splashLandscape = '$_splash/16x9_loading_screen.mp4';
+  static const splashPortrait = '$_boot/boot_portrait.mp4';
+  static const splashLandscape = '$_boot/boot_landscape.mp4';
 
-  static String loadingBar(int state) => '$_splash/tdb_bar_$state.webp';
+  static String loadingBar(int state) => '$_boot/boot_pulse_$state.webp';
 }

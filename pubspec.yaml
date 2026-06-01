@@ -1,7 +1,7 @@
 name: tower_dash_bricks
 description: "TowerDash Bricks – Rush to stack 'em all!"
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.2+5
 
 environment:
   sdk: ^3.11.4
@@ -12,8 +12,6 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   # ── Game ──────────────────────────────────────────────────
-  flame: ^1.37.0
-  flame_forge2d: ^0.19.2+6
   google_fonts: ^8.1.0
   audioplayers: ^6.6.0
 
@@ -60,9 +58,9 @@ flutter:
     - assets/tdb_icon.webp
     - assets/tdb_name.webp
     - assets/gameplay/
-    - assets/splash/
-    - assets/additional_assets/notifications/
-    - assets/additional_assets/no_wifi/
+    - assets/boot/
+    - assets/notice/
+    - assets/netdrop/
     - assets/music/
 
 flutter_launcher_icons:
