@@ -1,0 +1,44 @@
+workflows:
+  ios-release:
+    name: iOS App Store Release
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.towerlab.tower.dash.bricks
+      xcode: latest
+      cocoapods: default
+
+    scripts:
+      - name: Set build number
+        script: |
+          agvtool new-version -all $BUILD_NUMBER
+
+      - name: Build and archive
+        script: |
+          xcode-project use-profiles
+          xcodebuild \
+            -project TowerDashBricks.xcodeproj \
+            -scheme TowerDashBricks \
+            -configuration Release \
+            -archivePath "$CM_BUILD_DIR/build/TowerDashBricks.xcarchive" \
+            archive \
+            CODE_SIGN_STYLE=Manual
+
+      - name: Export IPA
+        script: |
+          xcode-project build-ipa \
+            --project TowerDashBricks.xcodeproj \
+            --scheme TowerDashBricks
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        cancel_previous_submissions: true
