@@ -54,10 +54,15 @@ TowerDashBricks/
 > All game assets are drawn procedurally (no webp/png gameplay sprites).  
 > Loading screen videos and bar frames are bundled under `Resources/`.
 
-### Signing (for a real device)
+### Signing (for a real device / App Store)
 In Xcode → target **TowerDashBricks** → **Signing & Capabilities**:
-- Set **Team** to your Apple Developer account.
-- The Bundle ID is `com.towerdashbricks.game` — change it if needed.
+| Field | Value |
+|---|---|
+| Team | `4SST65R9U6` |
+| Bundle Identifier | `com.towerlab.tower.dash.bricks` |
+| App Store Connect App ID | `6771513809` |
+
+These values are already set in `project.pbxproj`.
 
 ## Architecture notes
 
