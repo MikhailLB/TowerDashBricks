@@ -16,17 +16,17 @@ struct HowToPlayView: View {
     }
 
     private let steps: [Step] = [
-        Step(icon: "number", title: "Read the Plan",
-             body: "The numbers along each row and column are the brick runs — how many bricks sit shoulder-to-shoulder, listed in the order they appear.",
+        Step(icon: "number", title: "Read the Blueprint",
+             body: "Numbers next to each row and column show brick runs — how many bricks sit together in a line, in order.",
              showSample: true),
-        Step(icon: "plus.app.fill", title: "Lay the Bricks",
-             body: "Tap a square to set a brick where the plan calls for one. Slide your finger along the grid to lay a whole course in one go.",
+        Step(icon: "plus.app.fill", title: "Place Bricks",
+             body: "Tap a cell to place a brick. Drag across the grid to fill an entire row or column quickly.",
              showSample: false),
-        Step(icon: "xmark", title: "Flag the Voids",
-             body: "Flip to \"Flag Void\" to chalk an X on squares you've ruled out. Flagging is free and never costs you an attempt.",
+        Step(icon: "xmark", title: "Mark the Gaps",
+             body: "Switch to \"Mark Gap\" to cross out cells you know are empty. Marking is always free — it never costs a life.",
              showSample: false),
-        Step(icon: "heart.fill", title: "Watch Your Attempts",
-             body: "Drop a brick in the wrong square and you lose an attempt. Run dry and the site is shut down. Stuck? Tap the bulb for a surveyor's tip.",
+        Step(icon: "heart.fill", title: "Watch Your Lives",
+             body: "A wrong brick costs a life. Lose them all and the blueprint fails. Stuck? Tap the bulb for a free hint.",
              showSample: false),
     ]
 
@@ -63,7 +63,7 @@ struct HowToPlayView: View {
                 .padding(.vertical, 8)
 
                 PixelButton(
-                    label: isLast ? "Grab a Trowel" : "Next",
+                    label: isLast ? "Let's Play!" : "Next",
                     width: nil,
                     height: 56,
                     fontSize: 20

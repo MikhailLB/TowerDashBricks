@@ -16,9 +16,9 @@ struct SettingsView: View {
                 header
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
-                        SectionLabel("Sound").padding(.bottom, 10)
+                        SectionLabel("Audio").padding(.bottom, 10)
                         ToggleTile(icon: "music.note", iconColor: AppColors.craneYellow,
-                                   title: "Music", subtitle: "Site soundtrack in menus and on the job",
+                                   title: "Music", subtitle: "Background music in menus and gameplay",
                                    value: Binding(get: { progress.musicEnabled }, set: {
                                        AudioService.shared.playSfx(.buttonClick)
                                        progress.musicEnabled = $0
@@ -32,7 +32,7 @@ struct SettingsView: View {
                                    })).padding(.top, 6)
 
                         ToggleTile(icon: "waveform", iconColor: AppColors.accent,
-                                   title: "Sound Effects", subtitle: "Brick clinks, thuds and button taps",
+                                   title: "Sound Effects", subtitle: "Brick drops, impacts and UI sounds",
                                    value: Binding(get: { progress.soundEnabled }, set: {
                                        progress.soundEnabled = $0
                                        if $0 { AudioService.shared.playSfx(.buttonClick) }
@@ -43,7 +43,7 @@ struct SettingsView: View {
 
                         SectionLabel("Haptics").padding(.top, 20).padding(.bottom, 10)
                         ToggleTile(icon: "iphone.radiowaves.left.and.right", iconColor: AppColors.success,
-                                   title: "Vibration", subtitle: "Buzz when bricks land or a slip happens",
+                                   title: "Vibration", subtitle: "Haptic feedback on key actions",
                                    value: Binding(get: { progress.vibrationEnabled }, set: {
                                        progress.vibrationEnabled = $0
                                        if $0 { AudioService.shared.vibrate() }
@@ -51,7 +51,7 @@ struct SettingsView: View {
                     }
                     .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 24)
                 }
-                PixelButton(label: "Done", width: nil, height: 58, fontSize: 20) {
+                PixelButton(label: "Save & Close", width: nil, height: 58, fontSize: 20) {
                     AudioService.shared.playSfx(.buttonClick); dismiss()
                 }
                 .padding(.horizontal, 20).padding(.bottom, 20)
@@ -64,8 +64,8 @@ struct SettingsView: View {
         HStack(spacing: 14) {
             BackButton { AudioService.shared.playSfx(.buttonClick); dismiss() }
             VStack(alignment: .leading, spacing: 0) {
-                Text("SITE OFFICE").font(AppFont.body(10)).tracking(3).foregroundStyle(AppColors.craneYellow)
-                Text("Settings").font(AppFont.title(26)).foregroundStyle(AppColors.text)
+                Text("SETTINGS").font(AppFont.body(10)).tracking(3).foregroundStyle(AppColors.craneYellow)
+                Text("Preferences").font(AppFont.title(26)).foregroundStyle(AppColors.text)
             }
             Spacer()
         }

@@ -265,8 +265,8 @@ private struct ModeBar: View {
     let onSelect: (EditMode) -> Void
     var body: some View {
         HStack(spacing: 5) {
-            ModeChip(label: "Lay Brick", icon: "plus.app.fill", active: mode == .lay) { onSelect(.lay) }
-            ModeChip(label: "Flag Void", icon: "xmark", active: mode == .mark) { onSelect(.mark) }
+            ModeChip(label: "Place Brick", icon: "plus.app.fill", active: mode == .lay) { onSelect(.lay) }
+            ModeChip(label: "Mark Gap", icon: "xmark", active: mode == .mark) { onSelect(.mark) }
         }
         .padding(5)
         .background(
@@ -308,9 +308,9 @@ private struct PauseOverlay: View {
     let onExit: () -> Void
     var body: some View {
         ModalScrim {
-            PanelCard(title: "Break Time", icon: "pause.circle.fill") {
-                PixelButton(label: "Back to Work", width: nil) { onResume() }
-                PixelButton(label: "Leave Site", width: nil, color: .secondary) { onExit() }
+            PanelCard(title: "Paused", icon: "pause.circle.fill") {
+                PixelButton(label: "Resume", width: nil) { onResume() }
+                PixelButton(label: "Main Menu", width: nil, color: .secondary) { onExit() }
             }
         }
     }
@@ -323,15 +323,15 @@ private struct ScrappedOverlay: View {
     let onExit: () -> Void
     var body: some View {
         ModalScrim {
-            PanelCard(title: "Site Shut Down", icon: "exclamationmark.triangle.fill") {
-                Text("Too many bricks out of place — the inspector pulled the plug.")
+            PanelCard(title: "Blueprint Failed", icon: "exclamationmark.triangle.fill") {
+                Text("Too many mistakes! The blueprint was scrapped.")
                     .font(AppFont.body(14)).foregroundStyle(AppColors.textMuted)
                     .multilineTextAlignment(.center)
                 if let onUseExtraLife {
-                    PixelButton(label: "Call Backup (x\(extraLives))", systemImage: "shield.fill", width: nil, fontSize: 16) { onUseExtraLife() }
+                    PixelButton(label: "Extra Life (x\(extraLives))", systemImage: "shield.fill", width: nil, fontSize: 16) { onUseExtraLife() }
                 }
-                PixelButton(label: "Start Over", width: nil) { onRestart() }
-                PixelButton(label: "Leave Site", width: nil, color: .secondary) { onExit() }
+                PixelButton(label: "Restart", width: nil) { onRestart() }
+                PixelButton(label: "Main Menu", width: nil, color: .secondary) { onExit() }
             }
         }
     }
@@ -347,7 +347,7 @@ private struct CompleteOverlay: View {
     var body: some View {
         let isLast = level.levelNumber >= PuzzleLevels.all.count
         ModalScrim {
-            PanelCard(title: "Job Signed Off!", icon: "checkmark.seal.fill") {
+            PanelCard(title: "Complete!", icon: "checkmark.seal.fill") {
                 BuiltPreview(level: level, brickSkin: brickSkin)
                 Text(level.name).font(AppFont.button(18)).foregroundStyle(AppColors.text)
                 HStack(spacing: 8) {
@@ -358,12 +358,12 @@ private struct CompleteOverlay: View {
                 .padding(.horizontal, 18).padding(.vertical, 7)
                 .background(RoundedRectangle(cornerRadius: 14).fill(AppColors.craneYellow.opacity(0.15)).overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(AppColors.craneYellow, lineWidth: 1.5)))
                 if perfect {
-                    Text("Flawless work — not a single hint!").font(AppFont.body(12)).foregroundStyle(AppColors.success)
+                    Text("Perfect — no hints used!").font(AppFont.body(12)).foregroundStyle(AppColors.success)
                 }
                 if !isLast {
-                    PixelButton(label: "Next Order", width: nil) { onNext() }
+                    PixelButton(label: "Next Level", width: nil) { onNext() }
                 }
-                PixelButton(label: "Rebuild", width: nil, color: .secondary) { onRestart() }
+                PixelButton(label: "Replay", width: nil, color: .secondary) { onRestart() }
             }
         }
     }

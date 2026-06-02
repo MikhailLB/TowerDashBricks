@@ -18,8 +18,8 @@ struct ShopView: View {
         VStack(spacing: 0) {
             header
             Picker("", selection: $tab) {
-                Text("Brick Styles").tag(0)
-                Text("Site Gear").tag(1)
+                Text("Brick Skins").tag(0)
+                Text("Power-Ups").tag(1)
             }
             .pickerStyle(.segmented)
             .padding(12)
@@ -36,8 +36,8 @@ struct ShopView: View {
         HStack {
             BackButton { AudioService.shared.playSfx(.buttonClick); dismiss() }
             VStack(alignment: .leading, spacing: 0) {
-                Text("SUPPLY YARD").font(AppFont.body(10)).tracking(3).foregroundStyle(AppColors.craneYellow)
-                Text("Builder's Store").font(AppFont.title(26)).foregroundStyle(AppColors.text)
+                Text("FORGE YARD").font(AppFont.body(10)).tracking(3).foregroundStyle(AppColors.craneYellow)
+                Text("Shop").font(AppFont.title(26)).foregroundStyle(AppColors.text)
             }
             .padding(.leading, 8)
             Spacer()
@@ -81,9 +81,9 @@ struct ShopView: View {
                     .frame(width: 44, height: 44)
                     .background(Circle().fill((isRandom ? AppColors.craneYellow : AppColors.textMuted).opacity(0.15)))
                 VStack(alignment: .leading) {
-                    Text("Mix It Up").font(AppFont.button(16))
+                    Text("Random Skin").font(AppFont.button(16))
                         .foregroundStyle(isRandom ? AppColors.craneYellow : AppColors.text)
-                    Text("Rotate through every brick style you own")
+                    Text("Cycle through all owned skins each game")
                         .font(AppFont.body(12)).foregroundStyle(AppColors.textMuted)
                 }
                 Spacer()
@@ -105,10 +105,10 @@ struct ShopView: View {
 
     private func buySkin(_ skin: Int) {
         AudioService.shared.playSfx(.buttonClick)
-        if skin >= firstComingSoonSkin { showSnack("Still in the kiln — back soon!"); return }
+        if skin >= firstComingSoonSkin { showSnack("Coming soon!"); return }
         if progress.ownedSkins.contains(skin) { progress.setSelectedSkin(skin); return }
         guard let price = skinPrices[skin] else { return }
-        guard progress.spendCoins(price) else { showSnack("Short on coins"); return }
+        guard progress.spendCoins(price) else { showSnack("Not enough coins"); return }
         progress.unlockSkin(skin)
         progress.setSelectedSkin(0)
     }
@@ -118,23 +118,23 @@ struct ShopView: View {
     private var powerUpsTab: some View {
         ScrollView {
             VStack(spacing: 10) {
-                BoostTile(icon: "lightbulb.fill", title: "Surveyor's Tip",
-                          subtitle: "Marks one correct brick for you — costs no attempt.",
+                BoostTile(icon: "lightbulb.fill", title: "Hint",
+                          subtitle: "Reveals one correct brick — no mistake counted.",
                           price: hintPrice, owned: progress.hintBoosts, color: AppColors.craneYellow) {
                     buyBoost(hintPrice) { progress.grantHint($0) }
                 }
-                BoostTile(icon: "shield.fill", title: "Backup Crew",
-                          subtitle: "Reopens a shut-down site with one more attempt.",
+                BoostTile(icon: "shield.fill", title: "Extra Life",
+                          subtitle: "Revives a failed blueprint with one extra life.",
                           price: extraLifePrice, owned: progress.extraLifeBoosts, color: AppColors.danger) {
                     buyBoost(extraLifePrice) { progress.grantExtraLife($0) }
                 }
-                BoostTile(icon: "creditcard.fill", title: "Payday Bonus",
-                          subtitle: "Doubles the coins you earn on your next order.",
+                BoostTile(icon: "creditcard.fill", title: "Double Coins",
+                          subtitle: "Doubles coin rewards for your next puzzle.",
                           price: goldRushPrice, owned: progress.doubleCoinsBoosts, color: AppColors.craneYellow) {
                     buyBoost(goldRushPrice) { progress.grantDoubleCoins($0) }
                 }
-                BoostTile(icon: "dice.fill", title: "Lucky Trowel",
-                          subtitle: "Tacks on +20 coins each time you sign off a job.",
+                BoostTile(icon: "dice.fill", title: "Lucky Bonus",
+                          subtitle: "+20 bonus coins when you complete a puzzle.",
                           price: foremanLuckPrice, owned: progress.luckyBoosts, color: AppColors.success) {
                     buyBoost(foremanLuckPrice) { progress.grantLucky($0) }
                 }
@@ -145,7 +145,7 @@ struct ShopView: View {
 
     private func buyBoost(_ price: Int, _ grant: (Int) -> Void) {
         AudioService.shared.playSfx(.buttonClick)
-        guard progress.spendCoins(price) else { showSnack("Short on coins"); return }
+        guard progress.spendCoins(price) else { showSnack("Not enough coins"); return }
         grant(1)
     }
 
@@ -218,14 +218,14 @@ private struct SkinTile: View {
 
     @ViewBuilder private var bottomLabel: some View {
         if comingSoon {
-            Text("In the Kiln").font(AppFont.body(11)).foregroundStyle(.white.opacity(0.38))
+            Text("Coming Soon").font(AppFont.body(11)).foregroundStyle(.white.opacity(0.38))
         } else if selected {
             HStack(spacing: 4) {
                 Image(systemName: "checkmark.circle.fill").font(.system(size: 14)).foregroundStyle(AppColors.craneYellow)
-                Text("IN USE").font(AppFont.body(11)).tracking(1).foregroundStyle(AppColors.craneYellow)
+                Text("EQUIPPED").font(AppFont.body(11)).tracking(1).foregroundStyle(AppColors.craneYellow)
             }
         } else if owned {
-            Text("Tap to use").font(AppFont.body(11)).foregroundStyle(AppColors.textMuted)
+            Text("Tap to equip").font(AppFont.body(11)).foregroundStyle(AppColors.textMuted)
         } else {
             HStack(spacing: 4) {
                 Image(systemName: "circle.circle.fill").font(.system(size: 14)).foregroundStyle(AppColors.craneYellow)
