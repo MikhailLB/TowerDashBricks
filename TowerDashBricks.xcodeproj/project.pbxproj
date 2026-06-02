@@ -9,10 +9,25 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		AA000000000000000000A5 /* TowerDashBricks */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				AA000000000000000000C1,
+			);
 			path = TowerDashBricks;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+		AA000000000000000000C1 = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			attributesByRelativePath = {
+			};
+			buildPhase = AA000000000000000000A9 /* Resources */;
+			membershipExceptions = (
+				"Info.plist",
+			);
+		};
+/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		AA000000000000000000A8 /* Frameworks */ = {
