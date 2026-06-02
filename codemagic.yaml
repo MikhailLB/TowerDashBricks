@@ -8,20 +8,19 @@ workflows:
       app_store_connect: Tower Dash Bricks code magic
 
     environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.towerlab.tower.dash.bricks
       vars:
-        BUNDLE_ID: "com.towerlab.tower.dash.bricks"
         XCODE_SCHEME: "TowerDashBricks"
         XCODE_PROJECT: "TowerDashBricks.xcodeproj"
       xcode: latest
       cocoapods: default
 
     scripts:
-      - name: Set up code signing (auto-create cert & profile)
+      - name: Set up code signing
         script: |
           keychain initialize
-          app-store-connect fetch-signing-files "$BUNDLE_ID" \
-            --type IOS_APP_STORE \
-            --create
           keychain add-certificates
           xcode-project use-profiles
 
