@@ -5,7 +5,7 @@ workflows:
     instance_type: mac_mini_m2
 
     integrations:
-      app_store_connect: Tower Dash Bricks
+      app_store_connect: Tower Dash Bricks code magic code magic
 
     environment:
       vars:
