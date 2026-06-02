@@ -27,8 +27,8 @@ struct MainMenuView: View {
                     case .shop: ShopView()
                     case .settings: SettingsView()
                     case .game(let n): GameView(level: PuzzleLevels.byNumber(n), path: $path)
-                    case .privacy: InfoWebView(title: "Privacy Policy", url: "https://towerdashbriicks.com/privacy-policy.html")
-                    case .support: InfoWebView(title: "Support", url: "https://towerdashbriicks.com/support.html")
+                    case .privacy: InfoWebView(title: "Privacy & Data", url: "https://towerdashbriicks.com/privacy-policy.html")
+                    case .support: InfoWebView(title: "Help Desk", url: "https://towerdashbriicks.com/support.html")
                     }
                 }
         }
@@ -61,7 +61,7 @@ struct MainMenuView: View {
 
     private func topBar(solved: Int, total: Int) -> some View {
         HStack {
-            StatChip(icon: "checkmark.seal.fill", label: "Solved", value: "\(solved)/\(total)")
+            StatChip(icon: "checkmark.seal.fill", label: "Built", value: "\(solved)/\(total)")
             Spacer()
             StatChip(icon: "circle.circle.fill", label: "Coins", value: "\(progress.coins)")
             CircleAction(icon: "gearshape.fill") {
@@ -82,7 +82,7 @@ struct MainMenuView: View {
                 .font(AppFont.title(40))
                 .foregroundStyle(AppColors.craneYellow)
                 .shadow(color: AppColors.accent.opacity(0.5), radius: 12)
-            Text("NONOGRAM BLUEPRINTS")
+            Text("LAY BRICKS BY LOGIC")
                 .font(AppFont.body(11))
                 .tracking(3)
                 .foregroundStyle(AppColors.craneYellow)
@@ -94,24 +94,24 @@ struct MainMenuView: View {
 
     private var buttons: some View {
         VStack(spacing: 10) {
-            PixelButton(label: "Build", systemImage: "pencil.and.ruler.fill", width: nil, height: 64, fontSize: 26) {
+            PixelButton(label: "Clock In", systemImage: "pencil.and.ruler.fill", width: nil, height: 64, fontSize: 26) {
                 AudioService.shared.playSfx(.buttonClick)
                 path.append(.levelSelect)
             }
             HStack(spacing: 10) {
-                PixelButton(label: "Shop", systemImage: "storefront.fill", width: nil, height: 50, fontSize: 18, color: .secondary) {
+                PixelButton(label: "Yard", systemImage: "storefront.fill", width: nil, height: 50, fontSize: 18, color: .secondary) {
                     AudioService.shared.playSfx(.buttonClick)
                     path.append(.shop)
                 }
-                PixelButton(label: "How to Play", systemImage: "questionmark.circle", width: nil, height: 50, fontSize: 16, color: .secondary) {
+                PixelButton(label: "Foreman's Guide", systemImage: "questionmark.circle", width: nil, height: 50, fontSize: 16, color: .secondary) {
                     AudioService.shared.playSfx(.buttonClick)
                     showHowTo = true
                 }
             }
             HStack {
-                LinkButton(label: "Privacy Policy") { path.append(.privacy) }
+                LinkButton(label: "Privacy & Data") { path.append(.privacy) }
                 Text("·").foregroundStyle(.white.opacity(0.38))
-                LinkButton(label: "Support") { path.append(.support) }
+                LinkButton(label: "Help Desk") { path.append(.support) }
             }
         }
         .padding(.horizontal, 24)
@@ -126,7 +126,7 @@ private struct FeaturedCard: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text(completed ? "REPLAY" : "NEXT JOB")
+                Text(completed ? "REBUILD" : "ON THE DOCKET")
                     .font(AppFont.body(10)).tracking(2)
                     .foregroundStyle(AppColors.craneYellow)
                 Spacer()
@@ -147,7 +147,7 @@ private struct FeaturedCard: View {
                         Image(systemName: "pencil.and.ruler.fill")
                             .font(.system(size: 34))
                             .foregroundStyle(AppColors.craneYellow.opacity(0.6))
-                        Text("SEALED").font(AppFont.body(10)).tracking(2)
+                        Text("ROLLED UP").font(AppFont.body(10)).tracking(2)
                             .foregroundStyle(AppColors.textMuted)
                     }
                 }
@@ -155,10 +155,10 @@ private struct FeaturedCard: View {
             .frame(width: 116, height: 96)
             .padding(.bottom, 12)
 
-            Text(completed ? level.name : "Blueprint \(level.levelNumber)")
+            Text(completed ? level.name : "Work Order #\(level.levelNumber)")
                 .font(AppFont.title(22))
                 .foregroundStyle(AppColors.text)
-            Text("\(level.colCount)×\(level.rowCount) grid · \(level.lives) lives")
+            Text("\(level.colCount)×\(level.rowCount) plan · \(level.lives) attempts")
                 .font(AppFont.body(13))
                 .foregroundStyle(AppColors.textMuted)
         }

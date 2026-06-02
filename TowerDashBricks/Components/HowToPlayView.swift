@@ -16,17 +16,17 @@ struct HowToPlayView: View {
     }
 
     private let steps: [Step] = [
-        Step(icon: "number", title: "Read the Blueprint",
-             body: "Numbers next to each row and column tell you the runs of bricks — how many bricks sit together in a line, in order.",
+        Step(icon: "number", title: "Read the Plan",
+             body: "The numbers along each row and column are the brick runs — how many bricks sit shoulder-to-shoulder, listed in the order they appear.",
              showSample: true),
-        Step(icon: "plus.app.fill", title: "Lay Bricks",
-             body: "Tap a cell to lay a brick where it belongs. Drag your finger across the grid to lay a whole line quickly.",
+        Step(icon: "plus.app.fill", title: "Lay the Bricks",
+             body: "Tap a square to set a brick where the plan calls for one. Slide your finger along the grid to lay a whole course in one go.",
              showSample: false),
-        Step(icon: "xmark", title: "Mark the Gaps",
-             body: "Switch to \"Mark Gap\" to cross out cells you know are empty. Marking is free — it never costs a life.",
+        Step(icon: "xmark", title: "Flag the Voids",
+             body: "Flip to \"Flag Void\" to chalk an X on squares you've ruled out. Flagging is free and never costs you an attempt.",
              showSample: false),
-        Step(icon: "heart.fill", title: "Mind Your Lives",
-             body: "A misplaced brick costs a heart. Run out and the blueprint is scrapped. Stuck? Tap the bulb to reveal one correct brick.",
+        Step(icon: "heart.fill", title: "Watch Your Attempts",
+             body: "Drop a brick in the wrong square and you lose an attempt. Run dry and the site is shut down. Stuck? Tap the bulb for a surveyor's tip.",
              showSample: false),
     ]
 
@@ -63,7 +63,7 @@ struct HowToPlayView: View {
                 .padding(.vertical, 8)
 
                 PixelButton(
-                    label: isLast ? "Let's Build" : "Next",
+                    label: isLast ? "Grab a Trowel" : "Next",
                     width: nil,
                     height: 56,
                     fontSize: 20

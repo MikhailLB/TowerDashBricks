@@ -41,8 +41,8 @@ struct LevelSelectView: View {
         HStack(spacing: 12) {
             BackButton { AudioService.shared.playSfx(.buttonClick); dismiss() }
             VStack(alignment: .leading, spacing: 0) {
-                Text("BLUEPRINT ARCHIVE").font(AppFont.body(11)).tracking(3).foregroundStyle(AppColors.craneYellow)
-                Text("Choose a Job").font(AppFont.title(26)).foregroundStyle(AppColors.text)
+                Text("JOB BOARD").font(AppFont.body(11)).tracking(3).foregroundStyle(AppColors.craneYellow)
+                Text("Pick a Work Order").font(AppFont.title(26)).foregroundStyle(AppColors.text)
             }
             Spacer()
             CoinPill(coins: progress.coins)
@@ -99,7 +99,7 @@ private struct LevelCard: View {
                 }
                 .frame(maxWidth: .infinity).frame(height: 96)
 
-                Text(completed ? level.name : (unlocked ? "Sealed Blueprint" : "Locked"))
+                Text(completed ? level.name : (unlocked ? "Rolled-Up Plan" : "On Hold"))
                     .font(AppFont.button(13))
                     .foregroundStyle(unlocked ? AppColors.text : .white.opacity(0.3))
                     .lineLimit(1)
