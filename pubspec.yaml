@@ -1,0 +1,43 @@
+name: tower_dash_bricks
+description: "Tower Dash Bricks – stack brick-unit towers and win the auto-battle."
+publish_to: 'none'
+version: 2.0.0+12
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  video_player: ^2.11.1
+  shared_preferences: ^2.5.5
+  google_fonts: ^8.1.0
+  audioplayers: ^6.6.0
+  webview_flutter: ^4.10.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+  image: ^4.8.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/tdb_icon.webp
+    - assets/tdb_name.webp
+    - assets/gameplay/
+    - assets/splash/
+    - assets/music/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/tdb_icon.webp"
+  remove_alpha_ios: true
+  background_color_ios: "#0D1B2A"
+  adaptive_icon_background: "#0D1B2A"
+  adaptive_icon_foreground: "assets/tdb_icon.webp"
